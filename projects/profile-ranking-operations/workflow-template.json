@@ -1,0 +1,2457 @@
+{
+  "name": "Profile Ranking Operations Automation (Portfolio Template)",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst sender = String(item.json.from ?? '').trim().toLowerCase();\nconst subject = String(item.json.subject ?? '').trim();\nconst expectedSubject = \"restore ranking\";\nconst subjectMatched = subject.toLowerCase().includes(expectedSubject);\nconst senderAllowed = sender.endsWith('@example.com');\nconst binaries = Object.entries(item.binary ?? {});\nconst csvFiles = binaries.filter(([, file]) => {\n  const extension = String(file.fileExtension ?? '').toLowerCase();\n  const fileName = String(file.fileName ?? '').toLowerCase();\n  const mimeType = String(file.mimeType ?? '').toLowerCase();\n  return extension === 'csv' || fileName.endsWith('.csv') || mimeType === 'text/csv';\n});\nconst attachmentValid = csvFiles.length === 1;\nlet reason = '';\nif (!subjectMatched) reason = 'Subject does not match this workflow';\nelse if (!senderAllowed) reason = 'Sender must use a @example.com email address';\nelse if (!attachmentValid) reason = csvFiles.length === 0\n  ? 'Attach exactly one CSV file containing RoomKey and AccountKey columns'\n  : 'Only one CSV attachment can be processed in each email';\nconst output = {\n  json: {\n    ...item.json,\n    MessageId: String(item.json.id ?? ''),\n    RequesterEmail: sender,\n    SubjectMatched: subjectMatched,\n    SenderAllowed: senderAllowed,\n    AttachmentValid: attachmentValid,\n    ValidationReason: reason,\n    RankingAction: \"Restore\",\n  },\n};\nif (attachmentValid) output.binary = { data: csvFiles[0][1] };\nreturn [output];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        528
+      ],
+      "id": "3ce86db8-bb57-444f-ae7a-405d62e94861",
+      "name": "Validate Sender Subject and CSV"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4a0ba6a9-d2f7-453a-a5ad-793239216016",
+              "leftValue": "={{ $json.SubjectMatched }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        720,
+        528
+      ],
+      "id": "dd40fe6e-9760-40f0-9bee-105d31a4fe63",
+      "name": "Subject Matches?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        960,
+        256
+      ],
+      "id": "26714a7d-1e95-4910-90ad-85f0c2894d4d",
+      "name": "Ignore Other Subjects"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b9c9f1c1-33e7-4528-94be-8df041c8d273",
+              "leftValue": "={{ $json.SenderAllowed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        528
+      ],
+      "id": "d3e65407-679e-4c58-80e5-4f7afa8e7b06",
+      "name": "Sender Allowed?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        288
+      ],
+      "id": "d3188a08-f7c6-4805-9857-f5680d97c96e",
+      "name": "Ignore External Sender"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5e7fa068-1d7f-4f28-af1c-6c6c67e8d95d",
+              "leftValue": "={{ $json.AttachmentValid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        528
+      ],
+      "id": "b97d3d98-6d7a-4d16-895b-affea98a1a22",
+      "name": "CSV Attachment Valid?"
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": {
+          "__rl": true,
+          "value": "={{ $('Validate Sender Subject and CSV').first().json.MessageId }}",
+          "mode": "id"
+        },
+        "message": "={{ 'The request could not be processed. ' + String($('Validate Sender Subject and CSV').first().json.ValidationReason ?? 'Invalid CSV attachment') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        320
+      ],
+      "id": "1a9a5a95-d51d-45c2-99ce-daa7148e6783",
+      "name": "Reply - Invalid CSV"
+    },
+    {
+      "parameters": {
+        "options": {
+          "delimiter": ",",
+          "encoding": "utf8",
+          "headerRow": true,
+          "includeEmptyCells": true
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1440,
+        608
+      ],
+      "id": "2a1b6772-1205-48ce-9b7e-6e06c801c7a0",
+      "name": "Extract CSV",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.all();\nconst context = $('Validate Sender Subject and CSV').first().json;\nconst normalizeHeader = (value) => String(value ?? '').toLowerCase().replace(/[\\s_-]+/g, '');\nconst getValue = (row, expected) => {\n  const target = normalizeHeader(expected);\n  for (const [key, value] of Object.entries(row ?? {})) {\n    if (normalizeHeader(key) === target) return String(value ?? '').trim();\n  }\n  return '';\n};\nconst firstJson = input[0]?.json ?? {};\nif (firstJson.error) {\n  return [{ json: {\n    RowNumber: 0,\n    RequestId: 'PARSE-ERROR',\n    RoomKey: '',\n    AccountKey: '',\n    RankingAction: \"Restore\",\n    TargetScore: 0,\n    SalesforceDownranked: false,\n    InputValid: false,\n    ValidationComment: 'CSV parsing failed: ' + String(firstJson.error),\n  }}];\n}\nconst keys = Object.keys(firstJson);\nconst hasRoomHeader = keys.some((key) => normalizeHeader(key) === 'room_key');\nconst hasAccountHeader = keys.some((key) => normalizeHeader(key) === 'accountkey');\nif (!hasRoomHeader || !hasAccountHeader) {\n  return [{ json: {\n    RowNumber: 0,\n    RequestId: 'HEADER-ERROR',\n    RoomKey: '',\n    AccountKey: '',\n    RankingAction: \"Restore\",\n    TargetScore: 0,\n    SalesforceDownranked: false,\n    InputValid: false,\n    ValidationComment: 'CSV must contain RoomKey and AccountKey columns',\n  }}];\n}\nconst dataRows = input\n  .map((item, index) => ({ row: item.json ?? {}, index }))\n  .filter(({ row }) => Object.values(row).some((value) => String(value ?? '').trim() !== ''));\nif (dataRows.length === 0) {\n  return [{ json: {\n    RowNumber: 0,\n    RequestId: 'EMPTY-CSV',\n    RoomKey: '',\n    AccountKey: '',\n    RankingAction: \"Restore\",\n    TargetScore: 0,\n    SalesforceDownranked: false,\n    InputValid: false,\n    ValidationComment: 'CSV contains no data rows',\n  }}];\n}\nconst messageToken = String(context.MessageId ?? 'message').replace(/[^a-zA-Z0-9]/g, '').slice(-16) || 'message';\nreturn dataRows.map(({ row, index }) => {\n  const roomKey = getValue(row, 'RoomKey');\n  const accountKey = getValue(row, 'AccountKey');\n  const rowNumber = index + 2;\n  return {\n    json: {\n      RowNumber: rowNumber,\n      RequestId: \"RESTORE\" + '-' + messageToken + '-' + rowNumber,\n      RoomKey: roomKey,\n      AccountKey: accountKey,\n      RankingAction: \"Restore\",\n      TargetScore: 0,\n      SalesforceDownranked: false,\n      InputValid: Boolean(roomKey),\n      ValidationComment: roomKey ? 'Input validated' : 'RoomKey is missing',\n    },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        608
+      ],
+      "id": "8e59cbd9-3790-4111-a23c-ff9ba69f799a",
+      "name": "Normalize CSV Rows"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1920,
+        608
+      ],
+      "id": "cd366213-794d-42ff-abdb-89d16d332613",
+      "name": "Loop Over Requests"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c4e7e144-ecf2-43bc-9886-cd6bac1006ba",
+              "leftValue": "={{ $json.InputValid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2160,
+        608
+      ],
+      "id": "24ba4bd8-0c4b-486a-8ed2-383de2657a2c",
+      "name": "RoomKey Valid?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Restore\"),\n  RankingStatus: \"Failed\",\n  SalesforceStatus: \"Not attempted\",\n  FinalStatus: \"Failed\",\n  Comment: String(request.ValidationComment ?? 'RoomKey is missing'),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        224
+      ],
+      "id": "5092d40e-2f52-4618-bdf4-a9d98aa88fbb",
+      "name": "Result - Missing RoomKey"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ranking_demo.profile_rooms SET adjustment_score = $1 WHERE room_key = $2;",
+        "options": {
+          "connectionLimit": 10,
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$('Normalize CSV Rows').item.json.TargetScore, $('Normalize CSV Rows').item.json.RoomKey] }}",
+          "replaceEmptyStrings": true,
+          "detailedOutput": true
+        }
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        2400,
+        608
+      ],
+      "id": "cf06a665-af96-42d4-89a9-f611de849684",
+      "name": "Update Additional Score",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f8fb7ea4-1c13-4e10-b5cf-ca12e7515aec",
+              "leftValue": "={{ Boolean($json.error) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2640,
+        608
+      ],
+      "id": "c7c46032-ef03-4e52-943b-e30e11468554",
+      "name": "Database Update Error?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT r.room_key AS RoomKey, r.location_key AS BranchKey, r.adjustment_score AS scoreAdjustment, CASE WHEN r.adjustment_score = CAST($1 AS SIGNED) THEN 1 ELSE 0 END AS UpdateVerified FROM ranking_demo.profile_rooms AS r WHERE r.room_key = $2 LIMIT 1;",
+        "options": {
+          "connectionLimit": 10,
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$('Normalize CSV Rows').item.json.TargetScore, $('Normalize CSV Rows').item.json.RoomKey] }}",
+          "replaceEmptyStrings": true
+        }
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        2880,
+        608
+      ],
+      "id": "40c187c0-2e25-40f3-87e4-64825f9ee7d7",
+      "name": "Read Score and BranchKey",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3bff25fa-5ea2-45e8-9da4-d0692c8b2a54",
+              "leftValue": "={{ !$json.error && Number($json.UpdateVerified ?? 0) === 1 && Boolean($json.BranchKey) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3120,
+        608
+      ],
+      "id": "ca2e07d3-4bf1-4dc1-b7b5-197e09665530",
+      "name": "Score Verified?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Restore\"),\n  RankingStatus: \"Failed\",\n  SalesforceStatus: \"Not attempted\",\n  FinalStatus: \"Failed\",\n  Comment: (() => {\n    const message = $json.error?.message ?? $json.message;\n    if (message) return 'Database processing failed: ' + String(message).slice(0, 220);\n    return 'Database verification failed: expected scoreAdjustment ' + String(request.TargetScore) + ', found ' + String($json.scoreAdjustment ?? 'no row') + ', or BranchKey was empty';\n  })(),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        240
+      ],
+      "id": "e9fbf8a1-d1ab-4299-b42a-287f86bcfbad",
+      "name": "Result - Database Failure"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.example.com/v1/ranking-sync",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ [{ RoomKey: String($json.RoomKey), BranchKey: String($json.BranchKey) }] }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 25
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3360,
+        608
+      ],
+      "id": "b1882a74-d31e-4d5f-a9e0-ed99ebb7c708",
+      "name": "Synchronize Ranking API",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "91798919-593f-4095-8c9a-5e6d2e97f958",
+              "leftValue": "={{ !$json.error && Number($json.statusCode ?? 0) >= 200 && Number($json.statusCode ?? 0) < 300 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3600,
+        608
+      ],
+      "id": "70e65917-db3c-4b85-a734-61691a84f082",
+      "name": "API Succeeded?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Restore\"),\n  RankingStatus: \"Failed after database update\",\n  SalesforceStatus: \"Not attempted\",\n  FinalStatus: \"Failed\",\n  Comment: 'Database updated, but ranking API failed: ' + String($json.error?.message ?? $json.message ?? ('HTTP ' + String($json.statusCode ?? 'unknown'))).slice(0, 220),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        256
+      ],
+      "id": "1cacecfb-dcd4-4d47-a2d7-c67347314f5a",
+      "name": "Result - API Failure"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "29e2bab1-2b1f-4faa-b302-330ea56c9146",
+              "leftValue": "={{ Boolean(String($('Normalize CSV Rows').item.json.AccountKey ?? '').trim()) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3840,
+        608
+      ],
+      "id": "c12ffabe-775d-45e5-a9e9-a6391fc70753",
+      "name": "AccountKey Provided?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Restore\"),\n  RankingStatus: \"Succeeded\",\n  SalesforceStatus: \"Skipped - AccountKey missing\",\n  FinalStatus: \"Succeeded\",\n  Comment: 'Ranking updated successfully; Salesforce skipped because AccountKey is missing',\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4080,
+        272
+      ],
+      "id": "02314f1b-e5f9-431e-b39f-5c6177868a2b",
+      "name": "Result - Success Without Salesforce"
+    },
+    {
+      "parameters": {
+        "resource": "account",
+        "operation": "getAll",
+        "limit": 1,
+        "options": {
+          "fields": "Id,External_REPLACE_SALESFORCE_ACCOUNT_KEY_FIELD,Ranking_Adjusted__c",
+          "conditionsUi": {
+            "conditionValues": [
+              {
+                "field": "External_REPLACE_SALESFORCE_ACCOUNT_KEY_FIELD",
+                "value": "={{ $('Normalize CSV Rows').item.json.AccountKey }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.salesforce",
+      "typeVersion": 1,
+      "position": [
+        4080,
+        608
+      ],
+      "id": "eda8294b-25e8-44b4-be41-b9cb2a2f38de",
+      "name": "Find Salesforce Account",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a533e90e-11ea-45e7-809c-26fb145ca8c4",
+              "leftValue": "={{ !$json.error && Boolean($json.Id) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4320,
+        608
+      ],
+      "id": "7920585f-abe1-4fa0-b58f-65690f2d1da0",
+      "name": "Salesforce Account Found?"
+    },
+    {
+      "parameters": {
+        "resource": "account",
+        "operation": "update",
+        "accountId": "={{ $json.Id }}",
+        "updateFields": {
+          "customFieldsUi": {
+            "customFieldsValues": [
+              {
+                "fieldId": "Ranking_Adjusted__c",
+                "value": "={{ $('Normalize CSV Rows').item.json.SalesforceDownranked }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.salesforce",
+      "typeVersion": 1,
+      "position": [
+        4560,
+        608
+      ],
+      "id": "a1a44bc2-8b3d-4d63-b5cf-0af13251d804",
+      "name": "Update Salesforce Down Ranked",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d0b5fc7f-fe0b-4012-9beb-336d5f8060ea",
+              "leftValue": "={{ !$json.error && Boolean($json.success) && (!Array.isArray($json.errors) || $json.errors.length === 0) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4800,
+        608
+      ],
+      "id": "48992004-e2e0-4b9b-a173-a8316f6b6112",
+      "name": "Salesforce Succeeded?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Restore\"),\n  RankingStatus: \"Succeeded\",\n  SalesforceStatus: \"Failed\",\n  FinalStatus: \"Partial Failure\",\n  Comment: 'Ranking updated, but Salesforce failed for AccountKey ' + String(request.AccountKey) + ': ' + String($json.error?.message ?? $json.message ?? 'account not found or update failed').slice(0, 190),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4800,
+        288
+      ],
+      "id": "3d1a7a8b-42eb-4fda-8f0e-e4a24f53c24e",
+      "name": "Result - Salesforce Failure"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Restore\"),\n  RankingStatus: \"Succeeded\",\n  SalesforceStatus: \"Updated - Ranking_Adjusted__c=false\",\n  FinalStatus: \"Succeeded\",\n  Comment: 'Ranking and Salesforce updated successfully',\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5040,
+        608
+      ],
+      "id": "ecc40df0-1f7c-41b2-92d4-30961849c281",
+      "name": "Result - Full Success"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all().map((item) => item.json);\nconst total = results.length;\nconst rankingUpdated = results.filter((row) => String(row.RankingStatus) === 'Succeeded').length;\nconst salesforceUpdated = results.filter((row) => String(row.SalesforceStatus).startsWith('Updated')).length;\nconst salesforceSkipped = results.filter((row) => String(row.SalesforceStatus).startsWith('Skipped')).length;\nconst reviewRequired = results.filter((row) => String(row.FinalStatus) !== 'Succeeded').length;\nconst allComplete = reviewRequired === 0 && salesforceSkipped === 0;\nconst replyText = allComplete\n  ? \"The restore ranking is done, and Salesforce has been updated.\"\n  : [\n      \"The restore ranking process has been completed.\",\n      'Total rows: ' + total,\n      'Ranking updated: ' + rankingUpdated,\n      'Salesforce updated: ' + salesforceUpdated,\n      'Salesforce skipped because AccountKey was missing: ' + salesforceSkipped,\n      'Rows requiring review: ' + reviewRequired,\n      '',\n      'The detailed results are attached.',\n    ].join('\\n');\nreturn [{ json: {\n  MessageId: String($('Validate Sender Subject and CSV').first().json.MessageId ?? ''),\n  ReplyText: replyText,\n  ResultsFileName: \"restore_ranking_results.csv\",\n  Results: results,\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        1040
+      ],
+      "id": "d85d383e-2dc6-4b95-992e-fe94a0d49aca",
+      "name": "Build Final Summary"
+    },
+    {
+      "parameters": {
+        "jsCode": "const summary = $input.first().json;\nreturn (summary.Results ?? []).map((row, index) => ({ json: {\n  RowNumber: row.RowNumber ?? index + 2,\n  RoomKey: row.RoomKey ?? '',\n  AccountKey: row.AccountKey ?? '',\n  BranchKey: row.BranchKey ?? '',\n  RankingStatus: row.RankingStatus ?? '',\n  SalesforceStatus: row.SalesforceStatus ?? '',\n  FinalStatus: row.FinalStatus ?? '',\n  Comment: row.Comment ?? '',\n}}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        1040
+      ],
+      "id": "1fe132c1-3c3c-4d06-9dd4-e09f8a7232e8",
+      "name": "Prepare Result CSV Rows"
+    },
+    {
+      "parameters": {
+        "binaryPropertyName": "resultFile",
+        "options": {
+          "fileName": "={{ $('Build Final Summary').first().json.ResultsFileName }}",
+          "headerRow": true
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2640,
+        1040
+      ],
+      "id": "d648135e-a3d6-4afb-b7d2-a9c3658e1117",
+      "name": "Create Result CSV"
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": {
+          "__rl": true,
+          "value": "={{ $('Build Final Summary').first().json.MessageId }}",
+          "mode": "id"
+        },
+        "message": "={{ $('Build Final Summary').first().json.ReplyText }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        1040
+      ],
+      "id": "59d42a06-f905-482e-ad68-d41e03e71a62",
+      "name": "Reply Once With Final Summary"
+    },
+    {
+      "parameters": {
+        "content": "## Restore Ranking - Outlook CSV Intake\n\n1. Add the same Microsoft Outlook OAuth2 credential to all three Outlook nodes.\n2. MySQL and Salesforce credentials were copied from the previous workflow.\n3. The ranking API URL and configuration were copied from the previous workflow.\n4. Activate only after sending a test email.\n\nAccepted request:\n- Sender ends with @example.com\n- Subject contains: Restore Ranking\n- Exactly one CSV attachment (the filename can be anything)\n- CSV headers: RoomKey,AccountKey\n\nAccountKey is optional. RoomKey is required. The workflow replies once, after every CSV row finishes. No Excel sheet or permanent audit table is used.",
+        "height": 430,
+        "width": 868,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c37b9e70-83b8-4adc-883b-ddc4a937cbea",
+      "name": "Setup Guide"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst sender = String(item.json.from ?? '').trim().toLowerCase();\nconst subject = String(item.json.subject ?? '').trim();\nconst expectedSubject = \"down ranking\";\nconst subjectMatched = subject.toLowerCase().includes(expectedSubject);\nconst senderAllowed = sender.endsWith('@example.com');\nconst binaries = Object.entries(item.binary ?? {});\nconst csvFiles = binaries.filter(([, file]) => {\n  const extension = String(file.fileExtension ?? '').toLowerCase();\n  const fileName = String(file.fileName ?? '').toLowerCase();\n  const mimeType = String(file.mimeType ?? '').toLowerCase();\n  return extension === 'csv' || fileName.endsWith('.csv') || mimeType === 'text/csv';\n});\nconst attachmentValid = csvFiles.length === 1;\nlet reason = '';\nif (!subjectMatched) reason = 'Subject does not match this workflow';\nelse if (!senderAllowed) reason = 'Sender must use a @example.com email address';\nelse if (!attachmentValid) reason = csvFiles.length === 0\n  ? 'Attach exactly one CSV file containing RoomKey and AccountKey columns'\n  : 'Only one CSV attachment can be processed in each email';\nconst output = {\n  json: {\n    ...item.json,\n    MessageId: String(item.json.id ?? ''),\n    RequesterEmail: sender,\n    SubjectMatched: subjectMatched,\n    SenderAllowed: senderAllowed,\n    AttachmentValid: attachmentValid,\n    ValidationReason: reason,\n    RankingAction: \"Downrank\",\n  },\n};\nif (attachmentValid) output.binary = { data: csvFiles[0][1] };\nreturn [output];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        2048
+      ],
+      "id": "1819a89b-ca03-474b-9d0c-9cae9b5d6b4f",
+      "name": "Validate Sender Subject and CSV1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d987fdc3-752a-4352-9d0a-45a785e811a6",
+              "leftValue": "={{ $json.SubjectMatched }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        752,
+        2048
+      ],
+      "id": "b15a4cc2-3dd7-430a-9291-389206d85713",
+      "name": "Subject Matches?1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        1792
+      ],
+      "id": "5415addf-3437-4fb9-9d93-24ce814353ba",
+      "name": "Ignore Other Subjects1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "129f354b-acc1-49db-8d54-27e63446fe84",
+              "leftValue": "={{ $json.SenderAllowed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        992,
+        2048
+      ],
+      "id": "9e420846-2737-4f36-aa59-96bf1c23afae",
+      "name": "Sender Allowed?1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        1808
+      ],
+      "id": "29508bfb-d1d1-42bc-8d07-6211e68172a4",
+      "name": "Ignore External Sender1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8226fe02-dcdb-4219-9e90-b2d66465de9b",
+              "leftValue": "={{ $json.AttachmentValid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1232,
+        2048
+      ],
+      "id": "04ac6bac-ca65-491e-84dc-d35b8c0794c0",
+      "name": "CSV Attachment Valid?1"
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": {
+          "__rl": true,
+          "value": "={{ $('Validate Sender Subject and CSV1').first().json.MessageId }}",
+          "mode": "id"
+        },
+        "message": "={{ 'The request could not be processed. ' + String($('Validate Sender Subject and CSV1').first().json.ValidationReason ?? 'Invalid CSV attachment') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        1824
+      ],
+      "id": "e35484b0-f0ec-4335-808b-71bc9b7a166f",
+      "name": "Reply - Invalid CSV1"
+    },
+    {
+      "parameters": {
+        "options": {
+          "delimiter": ",",
+          "encoding": "utf8",
+          "headerRow": true,
+          "includeEmptyCells": true
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1472,
+        2128
+      ],
+      "id": "ac96226e-51fd-45d1-9371-d30ca2ab5c9c",
+      "name": "Extract CSV1",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.all();\nconst context = $('Validate Sender Subject and CSV1').first().json;\nconst normalizeHeader = (value) => String(value ?? '').toLowerCase().replace(/[\\s_-]+/g, '');\nconst getValue = (row, expected) => {\n  const target = normalizeHeader(expected);\n  for (const [key, value] of Object.entries(row ?? {})) {\n    if (normalizeHeader(key) === target) return String(value ?? '').trim();\n  }\n  return '';\n};\nconst firstJson = input[0]?.json ?? {};\nif (firstJson.error) {\n  return [{ json: {\n    RowNumber: 0,\n    RequestId: 'PARSE-ERROR',\n    RoomKey: '',\n    AccountKey: '',\n    RankingAction: \"Downrank\",\n    TargetScore: -350,\n    SalesforceDownranked: true,\n    InputValid: false,\n    ValidationComment: 'CSV parsing failed: ' + String(firstJson.error),\n  }}];\n}\nconst keys = Object.keys(firstJson);\nconst hasRoomHeader = keys.some((key) => normalizeHeader(key) === 'room_key');\nconst hasAccountHeader = keys.some((key) => normalizeHeader(key) === 'accountkey');\nif (!hasRoomHeader || !hasAccountHeader) {\n  return [{ json: {\n    RowNumber: 0,\n    RequestId: 'HEADER-ERROR',\n    RoomKey: '',\n    AccountKey: '',\n    RankingAction: \"Downrank\",\n    TargetScore: -350,\n    SalesforceDownranked: true,\n    InputValid: false,\n    ValidationComment: 'CSV must contain RoomKey and AccountKey columns',\n  }}];\n}\nconst dataRows = input\n  .map((item, index) => ({ row: item.json ?? {}, index }))\n  .filter(({ row }) => Object.values(row).some((value) => String(value ?? '').trim() !== ''));\nif (dataRows.length === 0) {\n  return [{ json: {\n    RowNumber: 0,\n    RequestId: 'EMPTY-CSV',\n    RoomKey: '',\n    AccountKey: '',\n    RankingAction: \"Downrank\",\n    TargetScore: -350,\n    SalesforceDownranked: true,\n    InputValid: false,\n    ValidationComment: 'CSV contains no data rows',\n  }}];\n}\nconst messageToken = String(context.MessageId ?? 'message').replace(/[^a-zA-Z0-9]/g, '').slice(-16) || 'message';\nreturn dataRows.map(({ row, index }) => {\n  const roomKey = getValue(row, 'RoomKey');\n  const accountKey = getValue(row, 'AccountKey');\n  const rowNumber = index + 2;\n  return {\n    json: {\n      RowNumber: rowNumber,\n      RequestId: \"DOWNRANK\" + '-' + messageToken + '-' + rowNumber,\n      RoomKey: roomKey,\n      AccountKey: accountKey,\n      RankingAction: \"Downrank\",\n      TargetScore: -350,\n      SalesforceDownranked: true,\n      InputValid: Boolean(roomKey),\n      ValidationComment: roomKey ? 'Input validated' : 'RoomKey is missing',\n    },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        2128
+      ],
+      "id": "286decbc-0df6-4420-868e-9bff0c135f02",
+      "name": "Normalize CSV Rows1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1952,
+        2128
+      ],
+      "id": "adb98256-a786-4853-a3ad-bbf03386a57c",
+      "name": "Loop Over Requests1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "802a58ad-2c93-4b75-a080-7908000938d7",
+              "leftValue": "={{ $json.InputValid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2192,
+        2128
+      ],
+      "id": "611f6ea3-dc99-4725-aee9-95b627d94c3e",
+      "name": "RoomKey Valid?1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows1').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey1').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Downrank\"),\n  RankingStatus: \"Failed\",\n  SalesforceStatus: \"Not attempted\",\n  FinalStatus: \"Failed\",\n  Comment: String(request.ValidationComment ?? 'RoomKey is missing'),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        1680
+      ],
+      "id": "222fb891-f8de-40ad-849d-dfc631471375",
+      "name": "Result - Missing RoomKey1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ranking_demo.profile_rooms SET adjustment_score = $1 WHERE room_key = $2;",
+        "options": {
+          "connectionLimit": 10,
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$('Normalize CSV Rows1').item.json.TargetScore, $('Normalize CSV Rows1').item.json.RoomKey] }}",
+          "replaceEmptyStrings": true,
+          "detailedOutput": true
+        }
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        2432,
+        2128
+      ],
+      "id": "1b75e1de-e682-4a2f-a958-b8733b0d9c5c",
+      "name": "Update Additional Score1",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5549ad45-b020-4995-b4bd-7a1482bef465",
+              "leftValue": "={{ Boolean($json.error) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2672,
+        2128
+      ],
+      "id": "409953a9-b225-4eb0-a6d7-1685c26d3659",
+      "name": "Database Update Error?1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT r.room_key AS RoomKey, r.location_key AS BranchKey, r.adjustment_score AS scoreAdjustment, CASE WHEN r.adjustment_score = CAST($1 AS SIGNED) THEN 1 ELSE 0 END AS UpdateVerified FROM ranking_demo.profile_rooms AS r WHERE r.room_key = $2 LIMIT 1;",
+        "options": {
+          "connectionLimit": 10,
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$('Normalize CSV Rows1').item.json.TargetScore, $('Normalize CSV Rows1').item.json.RoomKey] }}",
+          "replaceEmptyStrings": true
+        }
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        2912,
+        2128
+      ],
+      "id": "a10f2dc1-0c4d-4807-baa2-eae4d1fe98e0",
+      "name": "Read Score and BranchKey1",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "af21b176-3b83-42f1-911a-29e1e8380e95",
+              "leftValue": "={{ !$json.error && Number($json.UpdateVerified ?? 0) === 1 && Boolean($json.BranchKey) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3152,
+        2128
+      ],
+      "id": "71bb1b28-16f7-4ff2-99fb-c53ef5d78d59",
+      "name": "Score Verified?1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows1').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey1').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Downrank\"),\n  RankingStatus: \"Failed\",\n  SalesforceStatus: \"Not attempted\",\n  FinalStatus: \"Failed\",\n  Comment: (() => {\n    const message = $json.error?.message ?? $json.message;\n    if (message) return 'Database processing failed: ' + String(message).slice(0, 220);\n    return 'Database verification failed: expected scoreAdjustment ' + String(request.TargetScore) + ', found ' + String($json.scoreAdjustment ?? 'no row') + ', or BranchKey was empty';\n  })(),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3152,
+        1712
+      ],
+      "id": "5f252a8f-9900-480b-94a9-cc695df6de67",
+      "name": "Result - Database Failure1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.example.com/v1/ranking-sync",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ [{ RoomKey: String($json.RoomKey), BranchKey: String($json.BranchKey) }] }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 25
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3392,
+        2128
+      ],
+      "id": "522deba1-c756-4d3b-b794-c67733e654b3",
+      "name": "Synchronize Ranking API1",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5adf9679-404d-46f1-b88f-87f0532ff330",
+              "leftValue": "={{ !$json.error && Number($json.statusCode ?? 0) >= 200 && Number($json.statusCode ?? 0) < 300 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3632,
+        2128
+      ],
+      "id": "45946f56-aa4a-4a11-96ec-86ec0962a51c",
+      "name": "API Succeeded?1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows1').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey1').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Downrank\"),\n  RankingStatus: \"Failed after database update\",\n  SalesforceStatus: \"Not attempted\",\n  FinalStatus: \"Failed\",\n  Comment: 'Database updated, but ranking API failed: ' + String($json.error?.message ?? $json.message ?? ('HTTP ' + String($json.statusCode ?? 'unknown'))).slice(0, 220),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3904,
+        1744
+      ],
+      "id": "ec753c68-aace-4bab-8f3c-b6f08e2206b0",
+      "name": "Result - API Failure1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1c7a029e-9ebf-47cd-b0c8-64a4d5787c1c",
+              "leftValue": "={{ Boolean(String($('Normalize CSV Rows1').item.json.AccountKey ?? '').trim()) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3872,
+        2128
+      ],
+      "id": "39261d88-b0e5-43ad-80f6-c720daed249e",
+      "name": "AccountKey Provided?1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows1').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey1').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Downrank\"),\n  RankingStatus: \"Succeeded\",\n  SalesforceStatus: \"Skipped - AccountKey missing\",\n  FinalStatus: \"Succeeded\",\n  Comment: 'Ranking updated successfully; Salesforce skipped because AccountKey is missing',\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4128,
+        1776
+      ],
+      "id": "73ae99eb-36b9-4f7e-8872-ab595940ae68",
+      "name": "Result - Success Without Salesforce1"
+    },
+    {
+      "parameters": {
+        "resource": "account",
+        "operation": "getAll",
+        "limit": 1,
+        "options": {
+          "fields": "Id,External_REPLACE_SALESFORCE_ACCOUNT_KEY_FIELD,Ranking_Adjusted__c",
+          "conditionsUi": {
+            "conditionValues": [
+              {
+                "field": "External_REPLACE_SALESFORCE_ACCOUNT_KEY_FIELD",
+                "value": "={{ $('Normalize CSV Rows1').item.json.AccountKey }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.salesforce",
+      "typeVersion": 1,
+      "position": [
+        4112,
+        2128
+      ],
+      "id": "c3514963-87f9-44c3-8f93-245590ba16d7",
+      "name": "Find Salesforce Account1",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "30e51195-b620-4068-92e1-5a79c96fea39",
+              "leftValue": "={{ !$json.error && Boolean($json.Id) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4352,
+        2128
+      ],
+      "id": "ab0d51d8-0a69-4088-a189-b293558ca144",
+      "name": "Salesforce Account Found?1"
+    },
+    {
+      "parameters": {
+        "resource": "account",
+        "operation": "update",
+        "accountId": "={{ $json.Id }}",
+        "updateFields": {
+          "customFieldsUi": {
+            "customFieldsValues": [
+              {
+                "fieldId": "Ranking_Adjusted__c",
+                "value": "={{ $('Normalize CSV Rows1').item.json.SalesforceDownranked }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.salesforce",
+      "typeVersion": 1,
+      "position": [
+        4592,
+        2128
+      ],
+      "id": "781c8f41-4b1c-47a3-9bfa-dd60a2b08730",
+      "name": "Update Salesforce Down Ranked1",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b6342c7c-2070-49d5-98b9-beda63521e5f",
+              "leftValue": "={{ !$json.error && Boolean($json.success) && (!Array.isArray($json.errors) || $json.errors.length === 0) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4832,
+        2128
+      ],
+      "id": "0b0a4ada-db7f-4267-b461-6d2db296985a",
+      "name": "Salesforce Succeeded?1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows1').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey1').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Downrank\"),\n  RankingStatus: \"Succeeded\",\n  SalesforceStatus: \"Failed\",\n  FinalStatus: \"Partial Failure\",\n  Comment: 'Ranking updated, but Salesforce failed for AccountKey ' + String(request.AccountKey) + ': ' + String($json.error?.message ?? $json.message ?? 'account not found or update failed').slice(0, 190),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4832,
+        1808
+      ],
+      "id": "7e4220d9-520b-4eb3-8255-295abadd6695",
+      "name": "Result - Salesforce Failure1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Normalize CSV Rows1').item.json;\nlet branchKey = '';\ntry { branchKey = String($('Read Score and BranchKey1').item.json.BranchKey ?? ''); } catch {}\nreturn [{ json: {\n  RowNumber: Number(request.RowNumber ?? 0),\n  RequestId: String(request.RequestId ?? ''),\n  RoomKey: String(request.RoomKey ?? ''),\n  AccountKey: String(request.AccountKey ?? ''),\n  BranchKey: branchKey,\n  Action: String(request.RankingAction ?? \"Downrank\"),\n  RankingStatus: \"Succeeded\",\n  SalesforceStatus: \"Updated - Ranking_Adjusted__c=true\",\n  FinalStatus: \"Succeeded\",\n  Comment: 'Ranking and Salesforce updated successfully',\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5072,
+        2128
+      ],
+      "id": "9d5f0cb1-59a6-494a-a00b-985b7a9090a8",
+      "name": "Result - Full Success1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all().map((item) => item.json);\nconst total = results.length;\nconst rankingUpdated = results.filter((row) => String(row.RankingStatus) === 'Succeeded').length;\nconst salesforceUpdated = results.filter((row) => String(row.SalesforceStatus).startsWith('Updated')).length;\nconst salesforceSkipped = results.filter((row) => String(row.SalesforceStatus).startsWith('Skipped')).length;\nconst reviewRequired = results.filter((row) => String(row.FinalStatus) !== 'Succeeded').length;\nconst allComplete = reviewRequired === 0 && salesforceSkipped === 0;\nconst replyText = allComplete\n  ? \"The downranking is done, and Salesforce has been updated.\"\n  : [\n      \"The downrank ranking process has been completed.\",\n      'Total rows: ' + total,\n      'Ranking updated: ' + rankingUpdated,\n      'Salesforce updated: ' + salesforceUpdated,\n      'Salesforce skipped because AccountKey was missing: ' + salesforceSkipped,\n      'Rows requiring review: ' + reviewRequired,\n      '',\n      'The detailed results are attached.',\n    ].join('\\n');\nreturn [{ json: {\n  MessageId: String($('Validate Sender Subject and CSV1').first().json.MessageId ?? ''),\n  ReplyText: replyText,\n  ResultsFileName: \"down_ranking_results.csv\",\n  Results: results,\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        2560
+      ],
+      "id": "2180899c-1b84-4601-ac0a-7bd219d795a8",
+      "name": "Build Final Summary1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const summary = $input.first().json;\nreturn (summary.Results ?? []).map((row, index) => ({ json: {\n  RowNumber: row.RowNumber ?? index + 2,\n  RoomKey: row.RoomKey ?? '',\n  AccountKey: row.AccountKey ?? '',\n  BranchKey: row.BranchKey ?? '',\n  RankingStatus: row.RankingStatus ?? '',\n  SalesforceStatus: row.SalesforceStatus ?? '',\n  FinalStatus: row.FinalStatus ?? '',\n  Comment: row.Comment ?? '',\n}}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2432,
+        2560
+      ],
+      "id": "d2a428c8-7c9e-4e53-8a33-6ccb6b4c7415",
+      "name": "Prepare Result CSV Rows1"
+    },
+    {
+      "parameters": {
+        "binaryPropertyName": "resultFile",
+        "options": {
+          "fileName": "={{ $('Build Final Summary1').first().json.ResultsFileName }}",
+          "headerRow": true
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2672,
+        2560
+      ],
+      "id": "688e2b1c-834d-45b8-abb5-48e8bb408767",
+      "name": "Create Result CSV1"
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": {
+          "__rl": true,
+          "value": "={{ $('Build Final Summary1').first().json.MessageId }}",
+          "mode": "id"
+        },
+        "message": "={{ $('Build Final Summary1').first().json.ReplyText }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        2912,
+        2560
+      ],
+      "id": "706f41d5-fd36-4f13-8e85-9527a54fca79",
+      "name": "Reply Once With Final Summary1"
+    },
+    {
+      "parameters": {
+        "content": "## Downrank Ranking - Outlook CSV Intake\n\n1. Add the same Microsoft Outlook OAuth2 credential to all three Outlook nodes.\n2. MySQL and Salesforce credentials were copied from the previous workflow.\n3. The ranking API URL and configuration were copied from the previous workflow.\n4. Activate only after sending a test email.\n\nAccepted request:\n- Sender ends with @example.com\n- Subject contains: Down Ranking\n- Exactly one CSV attachment (the filename can be anything)\n- CSV headers: RoomKey,AccountKey\n\nAccountKey is optional. RoomKey is required. The workflow replies once, after every CSV row finishes. No Excel sheet or permanent audit table is used.",
+        "height": 430,
+        "width": 868,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        48,
+        1520
+      ],
+      "id": "ec4bce03-d6a0-4d9d-a560-96cd88bd4a48",
+      "name": "Setup Guide1"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "custom": "subject eq 'Restore Ranking'",
+          "hasAttachments": true,
+          "readStatus": "both"
+        },
+        "options": {
+          "attachmentsPrefix": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlookTrigger",
+      "typeVersion": 1,
+      "position": [
+        32,
+        528
+      ],
+      "id": "5e0cf935-caf3-4c99-a1a1-ad9115ca3fea",
+      "name": "Outlook - Restore Email"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "custom": "subject eq 'Down Ranking'",
+          "hasAttachments": true,
+          "readStatus": "both"
+        },
+        "options": {
+          "attachmentsPrefix": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlookTrigger",
+      "typeVersion": 1,
+      "position": [
+        64,
+        2048
+      ],
+      "id": "4c41ae8a-5585-40b7-bc5f-3e6dc3aa94eb",
+      "name": "Outlook - down Email"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        240,
+        528
+      ],
+      "id": "ab023c01-aace-418b-9388-827a4b61a5b2",
+      "name": "Loop Over Restore Emails"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        272,
+        2048
+      ],
+      "id": "f27c870f-1410-4ae2-b1f7-d7a39b826624",
+      "name": "Loop Over Downrank Emails"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Validate Sender Subject and CSV": {
+      "main": [
+        [
+          {
+            "node": "Subject Matches?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subject Matches?": {
+      "main": [
+        [
+          {
+            "node": "Sender Allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore Other Subjects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sender Allowed?": {
+      "main": [
+        [
+          {
+            "node": "CSV Attachment Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore External Sender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSV Attachment Valid?": {
+      "main": [
+        [
+          {
+            "node": "Extract CSV",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply - Invalid CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract CSV": {
+      "main": [
+        [
+          {
+            "node": "Normalize CSV Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize CSV Rows": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Requests": {
+      "main": [
+        [
+          {
+            "node": "Build Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RoomKey Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RoomKey Valid?": {
+      "main": [
+        [
+          {
+            "node": "Update Additional Score",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - Missing RoomKey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Additional Score": {
+      "main": [
+        [
+          {
+            "node": "Database Update Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Database Update Error?": {
+      "main": [
+        [
+          {
+            "node": "Result - Database Failure",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Score and BranchKey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Score and BranchKey": {
+      "main": [
+        [
+          {
+            "node": "Score Verified?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Verified?": {
+      "main": [
+        [
+          {
+            "node": "Synchronize Ranking API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - Database Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Synchronize Ranking API": {
+      "main": [
+        [
+          {
+            "node": "API Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "AccountKey Provided?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - API Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AccountKey Provided?": {
+      "main": [
+        [
+          {
+            "node": "Find Salesforce Account",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - Success Without Salesforce",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Salesforce Account": {
+      "main": [
+        [
+          {
+            "node": "Salesforce Account Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salesforce Account Found?": {
+      "main": [
+        [
+          {
+            "node": "Update Salesforce Down Ranked",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - Salesforce Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Salesforce Down Ranked": {
+      "main": [
+        [
+          {
+            "node": "Salesforce Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salesforce Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Result - Full Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - Salesforce Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - Missing RoomKey": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - Database Failure": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - API Failure": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - Success Without Salesforce": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - Salesforce Failure": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - Full Success": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Summary": {
+      "main": [
+        [
+          {
+            "node": "Prepare Result CSV Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Result CSV Rows": {
+      "main": [
+        [
+          {
+            "node": "Create Result CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Result CSV": {
+      "main": [
+        [
+          {
+            "node": "Reply Once With Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Sender Subject and CSV1": {
+      "main": [
+        [
+          {
+            "node": "Subject Matches?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subject Matches?1": {
+      "main": [
+        [
+          {
+            "node": "Sender Allowed?1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore Other Subjects1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sender Allowed?1": {
+      "main": [
+        [
+          {
+            "node": "CSV Attachment Valid?1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore External Sender1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSV Attachment Valid?1": {
+      "main": [
+        [
+          {
+            "node": "Extract CSV1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply - Invalid CSV1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract CSV1": {
+      "main": [
+        [
+          {
+            "node": "Normalize CSV Rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize CSV Rows1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Requests1": {
+      "main": [
+        [
+          {
+            "node": "Build Final Summary1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RoomKey Valid?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RoomKey Valid?1": {
+      "main": [
+        [
+          {
+            "node": "Update Additional Score1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - Missing RoomKey1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - Missing RoomKey1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Additional Score1": {
+      "main": [
+        [
+          {
+            "node": "Database Update Error?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Database Update Error?1": {
+      "main": [
+        [
+          {
+            "node": "Result - Database Failure1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Score and BranchKey1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Score and BranchKey1": {
+      "main": [
+        [
+          {
+            "node": "Score Verified?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Verified?1": {
+      "main": [
+        [
+          {
+            "node": "Synchronize Ranking API1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - Database Failure1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - Database Failure1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Synchronize Ranking API1": {
+      "main": [
+        [
+          {
+            "node": "API Succeeded?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Succeeded?1": {
+      "main": [
+        [
+          {
+            "node": "AccountKey Provided?1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - API Failure1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - API Failure1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AccountKey Provided?1": {
+      "main": [
+        [
+          {
+            "node": "Find Salesforce Account1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - Success Without Salesforce1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - Success Without Salesforce1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Salesforce Account1": {
+      "main": [
+        [
+          {
+            "node": "Salesforce Account Found?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salesforce Account Found?1": {
+      "main": [
+        [
+          {
+            "node": "Update Salesforce Down Ranked1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - Salesforce Failure1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Salesforce Down Ranked1": {
+      "main": [
+        [
+          {
+            "node": "Salesforce Succeeded?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salesforce Succeeded?1": {
+      "main": [
+        [
+          {
+            "node": "Result - Full Success1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result - Salesforce Failure1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - Salesforce Failure1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result - Full Success1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Summary1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Result CSV Rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Result CSV Rows1": {
+      "main": [
+        [
+          {
+            "node": "Create Result CSV1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Result CSV1": {
+      "main": [
+        [
+          {
+            "node": "Reply Once With Final Summary1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outlook - Restore Email": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Restore Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outlook - down Email": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Downrank Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Restore Emails": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Validate Sender Subject and CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ignore Other Subjects": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Restore Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ignore External Sender": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Restore Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply - Invalid CSV": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Restore Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply Once With Final Summary": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Restore Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Downrank Emails": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Validate Sender Subject and CSV1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ignore Other Subjects1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Downrank Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ignore External Sender1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Downrank Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply - Invalid CSV1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Downrank Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply Once With Final Summary1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Downrank Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timezone": "UTC"
+  }
+}

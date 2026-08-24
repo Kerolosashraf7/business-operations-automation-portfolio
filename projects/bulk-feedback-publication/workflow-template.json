@@ -1,0 +1,379 @@
+{
+  "name": "Bulk Feedback Publication Automation (Portfolio Template)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "custom": "startswith(subject,'Publish Feedback')",
+          "hasAttachments": true,
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "4e4786f0-c202-424f-81d5-2ba45a5172fc",
+      "name": "Outlook Trigger: Shared Mailbox",
+      "type": "n8n-nodes-base.microsoftOutlookTrigger",
+      "typeVersion": 1,
+      "position": [
+        6688,
+        2944
+      ],
+      "notesInFlow": true,
+      "notes": "Set 'Folder to Watch' in the UI"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "subj",
+              "leftValue": "={{ $json.subject }}",
+              "rightValue": "Publish Feedback",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            },
+            {
+              "id": "att",
+              "leftValue": "={{ $json.hasAttachments }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "sender",
+              "leftValue": "={{ String(typeof $json.from === 'string' ? $json.from : ($json.from?.emailAddress?.address || $json.sender?.emailAddress?.address || $json.fromAddress || '')).toLowerCase().trim().replace(/^.*</, '').replace(/>.*$/, '') }}",
+              "rightValue": "@example.com",
+              "operator": {
+                "type": "string",
+                "operation": "endsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "59f98ea7-3e56-4909-a12c-0eb2ff836989",
+      "name": "Filter: Subject Matches",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        7008,
+        2944
+      ],
+      "notesInFlow": true,
+      "notes": "Subject + attachment + @example.com sender"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "id": "09382640-d748-4a85-89d3-d567c4ff8a9e",
+      "name": "Loop Over Emails",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        7392,
+        2944
+      ],
+      "notesInFlow": true,
+      "notes": "One email = one query = one reply"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "options": {
+          "attachmentsPrefix": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "id": "2c03040b-4981-4d32-a3c3-37d9ed8f8094",
+      "name": "Fetch Message + Attachments",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        7664,
+        2960
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "binaryPropertyName": "={{ Object.keys($binary).find(k => String($binary[k].fileName || '').toLowerCase().endsWith('.csv')) || 'attachment_0' }}",
+        "options": {
+          "headerRow": true
+        }
+      },
+      "id": "02297168-fee0-4227-973b-97269a8ff8d1",
+      "name": "Extract CSV Rows",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        7872,
+        2960
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pull FeedbackRecordIds out of the CSV and build one UPDATE statement.\nconst REQUIRED = 'FeedbackRecordId';\nconst MAX_IDS  = 20000;\n\nconst rows = $input.all();\nconst ctx  = $('Fetch Message + Attachments').first().json;\nconst messageId = ctx.id || ctx.messageId;\nconst subject   = ctx.subject || '';\n\nconst reject = (msg) => [{\n  json: {\n    ok: false,\n    messageId,\n    subject,\n    replyBody:\n      'Automated notice - feedback publication\\n\\n' +\n      'STATUS: REJECTED - no database changes were made.\\n\\n' +\n      msg + '\\n\\n' +\n      'Expected: a CSV with a header column named exactly FeedbackRecordId,\\n' +\n      'one numeric id per row. Fix the file and resend.',\n  },\n}];\n\nif (rows.length === 0) return reject('The CSV attachment contained no data rows.');\n\nconst headers = Object.keys(rows[0].json || {});\nconst col = headers.find(\n  (h) => String(h).replace(/^\\uFEFF/, '').trim().toLowerCase() === REQUIRED.toLowerCase()\n);\nif (!col) {\n  return reject('Required column \"' + REQUIRED + '\" was not found. Columns detected: ' +\n    (headers.join(', ') || '(none)') + '.');\n}\n\nconst ids = [];\nconst seen = new Set();\nconst bad = [];\n\nrows.forEach((r, i) => {\n  const raw = (r.json || {})[col];\n  const v = String(raw === undefined || raw === null ? '' : raw)\n    .trim().replace(/^[\"']+|[\"']+$/g, '').trim();\n  if (v === '') return;                                   // blank row\n  if (!/^[0-9]{1,19}$/.test(v)) {                         // digits only - keeps the IN list safe\n    bad.push('row ' + (i + 2) + ' = \"' + v.slice(0, 40) + '\"');\n    return;\n  }\n  if (seen.has(v)) return;                                // duplicate\n  seen.add(v);\n  ids.push(v);\n});\n\nif (bad.length) {\n  return reject(bad.length + ' value(s) in column \"' + col + '\" are not numeric FeedbackRecordIds. ' +\n    'Nothing was updated. First offenders: ' + bad.slice(0, 10).join('; ') + '.');\n}\nif (ids.length === 0) return reject('Column \"' + col + '\" was present but contained no usable ids.');\nif (ids.length > MAX_IDS) {\n  return reject('The file contains ' + ids.length + ' ids, above the ' + MAX_IDS +\n    ' safety limit. Split it and resend.');\n}\n\nconst query =\n  'SET NOCOUNT ON;\\n' +\n  'UPDATE dbo.FeedbackRecords\\n' +\n  '   SET IsPublished = 1\\n' +\n  ' WHERE (IsPublished IS NULL OR IsPublished <> 1)\\n' +\n  \"   AND FeedbackRecordId IN ('\" + ids.join(\"','\") + \"');\\n\" +\n  'SELECT @@ROWCOUNT AS rowsUpdated;';\n\nreturn [{ json: { ok: true, messageId, subject, idCount: ids.length, rowsInFile: rows.length, query } }];"
+      },
+      "id": "a32f7d4b-5e95-4eac-88aa-4d41b7647a1b",
+      "name": "Build Update Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8080,
+        2960
+      ],
+      "notesInFlow": true,
+      "notes": "Validates FeedbackRecordId, builds one UPDATE"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ok",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "d95e7a9f-f85f-47e4-9279-48fc962c335b",
+      "name": "IF: CSV Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        8304,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $json.messageId || $('Build Update Query').first().json.messageId }}",
+        "message": "={{ ($json.replyBody || 'feedback publication\\n\\nSTATUS: DONE').split('\\n').join('<br>') + '<br><br>Best regards,<br>Dev.Automation' }}",
+        "options": {}
+      },
+      "id": "64beb24c-c30f-42f7-9ef9-0dab181c9a8f",
+      "name": "Reply to Sender",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        8752,
+        2976
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "content": "## Shared mailbox: read this before activating\n\n**1. The credential must BE the mailbox.** n8n's Outlook node calls `/me/...`,\nso it only ever sees the signed-in account - adding a shared mailbox as a\ndelegate is NOT enough. Either license the shared mailbox as a normal account\nand sign in as it, or add an Exchange rule that redirects matching mail to a\ndedicated service mailbox that n8n owns.\n\n**2. Accepted mail must pass all three Filter conditions:**\n  - subject starts with `Publish Feedback`\n  - has an attachment\n  - sender address ends with `@example.com`\n\nNon-matching mail is dropped silently - no reply is sent. Replying would\nconfirm the mailbox is live and could be used for backscatter.\n\n**3. IMPORTANT - the From header is spoofable.** This filter stops accidents\nand casual misuse, not a determined attacker. Back it with an Exchange\ntransport rule that rejects external mail to this mailbox, and confirm the\ntenant DMARC policy is p=reject for example.com.\n\n**4. Set 'Folder to Watch' on the trigger.** Best practice: an Exchange inbox\nrule moves matching mail into a subfolder, and n8n watches only that folder.\n\n**5. Verify the sender field once.** Run the trigger in test mode and confirm\nthe output really contains `from.emailAddress.address`. The filter is\nfail-closed: if that field is absent, EVERYTHING is dropped.",
+        "height": 560,
+        "width": 620,
+        "color": 4
+      },
+      "id": "98a48326-c042-4473-b3f1-10bf10b4e81d",
+      "name": "Note: Shared mailbox setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        6720,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Why the loop\nA busy mailbox can deliver two matching emails in one poll.\nWithout this, both CSVs merge into a single UPDATE and only\none sender gets a reply. The loop keeps each ticket isolated.",
+        "width": 320,
+        "color": 3
+      },
+      "id": "2182ce1b-a236-4eca-885e-498404c09110",
+      "name": "Note: Loop",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        7360,
+        2768
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "bf1a539e-1666-46c9-85dc-a237e7e17ec7",
+      "name": "Run Update",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        8528,
+        2832
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "notes": "Idempotent: only rows where IsPublished <> 1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Outlook Trigger: Shared Mailbox": {
+      "main": [
+        [
+          {
+            "node": "Filter: Subject Matches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Subject Matches": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Emails": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Fetch Message + Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Message + Attachments": {
+      "main": [
+        [
+          {
+            "node": "Extract CSV Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract CSV Rows": {
+      "main": [
+        [
+          {
+            "node": "Build Update Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Update Query": {
+      "main": [
+        [
+          {
+            "node": "IF: CSV Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: CSV Valid": {
+      "main": [
+        [
+          {
+            "node": "Run Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply to Sender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to Sender": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Update": {
+      "main": [
+        [
+          {
+            "node": "Reply to Sender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timezone": "UTC"
+  }
+}

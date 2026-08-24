@@ -1,0 +1,2668 @@
+{
+  "name": "Reviews and Ratings Migration Automation (Portfolio Template)",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        5312,
+        4080
+      ],
+      "id": "a5186f6a-d6a3-45d4-928c-c9dabbd3654c",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "resource": "table",
+        "operation": "getRows",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "REPLACE_WITH_TABLE_ID",
+          "mode": "id"
+        },
+        "returnAll": true,
+        "filters": {
+          "column": []
+        }
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        6144,
+        3968
+      ],
+      "id": "bd46c935-7240-4882-921b-1012fb4b225a",
+      "name": "Get Approved Sales Requests"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "227f79d7-461a-4b9c-aebc-4a2f840e5b01",
+              "leftValue": "={{ $json.Approval }}",
+              "rightValue": "Approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "fa6ccf79-3fc3-461d-8a70-57f9d7abd2b6",
+              "leftValue": "={{ $json.OldRoomKey }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c6ebc178-9313-4214-b625-befc9352bbab",
+              "leftValue": "={{ $json.NewRoomKey }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "5bde967a-f570-45bf-9360-3d49d6743805",
+              "leftValue": "={{ $json.RequestId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "dce11c17-db72-4051-8caf-30366656f6b3",
+              "leftValue": "={{ $json['Dev Action'] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "24012b80-e80e-479e-96ca-25b74cd4cf0e",
+              "leftValue": "={{ $json['Automation Comment'] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        6800,
+        3968
+      ],
+      "id": "d6f9acd3-e747-4a64-b283-fefaad4edf84",
+      "name": "Keep Approved Requests"
+    },
+    {
+      "parameters": {
+        "jsCode": "const queueIds = new Set(\n  $('Get Automation Queue Rows')\n    .all()\n    .map(item => String(item.json.RequestId ?? '').trim())\n    .filter(Boolean)\n);\n\nreturn $input.all().map((item, index) => {\n  const requestId = String(item.json.RequestId ?? '').trim();\n  return {\n    json: {\n      ...item.json,\n      AlreadyQueued: requestId !== '' && queueIds.has(requestId),\n    },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7040,
+        3968
+      ],
+      "id": "4a0de801-c882-4dfd-8c3f-56e990c96db7",
+      "name": "Check Request in Queue"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d7b4d004-3602-4fd6-8f61-9a759b49da30",
+              "leftValue": "={{ !$json.AlreadyQueued }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        7280,
+        3968
+      ],
+      "id": "e4986c71-aa6d-44f8-bae2-a24f0e5085e4",
+      "name": "Is New Request?"
+    },
+    {
+      "parameters": {
+        "resource": "table",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "REPLACE_WITH_TABLE_ID",
+          "mode": "id"
+        },
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "RequestId",
+              "fieldValue": "={{ $json.RequestId }}"
+            },
+            {
+              "column": "OldRoomKey",
+              "fieldValue": "={{ $json.OldRoomKey }}"
+            },
+            {
+              "column": "NewRoomKey",
+              "fieldValue": "={{ $json.NewRoomKey }}"
+            },
+            {
+              "column": "Approval",
+              "fieldValue": "={{ $json.Approval }}"
+            },
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Pending"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "ResolveProfileListings"
+            },
+            {
+              "column": "RetryRequested",
+              "fieldValue": "No"
+            },
+            {
+              "column": "ReviewsStatus",
+              "fieldValue": "Pending"
+            },
+            {
+              "column": "RatingsStatus",
+              "fieldValue": "Pending"
+            },
+            {
+              "column": "SqsStatus",
+              "fieldValue": "Pending"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "Queued for processing"
+            },
+            {
+              "column": "StartedAt",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        7520,
+        3968
+      ],
+      "id": "bf2ad152-7120-45d8-ba00-92f1038bce19",
+      "name": "Create Queue Record"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ 'A5:L' + ($('Get Approved Sales Requests').all().reduce((last, item, index) => item.json.RequestId ? index : last, -1) + 6) }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "Automation Comment",
+              "fieldValue": "Queued for processing"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        7760,
+        3968
+      ],
+      "id": "3ba33582-5ba4-45e7-ab8b-d320c4a7e324",
+      "name": "Mark Sales Request as Queued"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DECLARE @RequestId NVARCHAR(100) =\n    N'{{ String($json.RequestId ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\nDECLARE @OldRoomKey NVARCHAR(MAX) =\n    N'{{ String($json.OldRoomKey ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\nDECLARE @NewRoomKey NVARCHAR(MAX) =\n    N'{{ String($json.NewRoomKey ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\n\n-- Basic validation only. Room keys have no fixed format or length.\nIF\n    NULLIF(LTRIM(RTRIM(@OldRoomKey)), N'') IS NULL\n    OR NULLIF(LTRIM(RTRIM(@NewRoomKey)), N'') IS NULL\n    OR LEN(@OldRoomKey) > 255\n    OR LEN(@NewRoomKey) > 255\n    OR @OldRoomKey = @NewRoomKey\nBEGIN\n    SELECT\n        @RequestId AS RequestId,\n        @OldRoomKey AS OldRoomKey,\n        @NewRoomKey AS NewRoomKey,\n        CAST(0 AS BIT) AS InputValid,\n\n        0 AS SourceMatchCount,\n        CAST(NULL AS BIGINT) AS SourceProfileListingId,\n        CAST(NULL AS NVARCHAR(255)) AS SourceProfileListingKey,\n\n        0 AS TargetMatchCount,\n        CAST(NULL AS BIGINT) AS TargetProfileListingId,\n        CAST(NULL AS NVARCHAR(255)) AS TargetProfileListingKey,\n\n        N'Room keys are empty, identical, or longer than 255 characters'\n            AS LookupComment;\n\n    RETURN;\nEND;\n\n\n;WITH Matches AS\n(\n    SELECT DISTINCT\n        contacts.RoomKey,\n        listings.ProfileListingId,\n        listings.ProfileListingKey\n    FROM ProfileListings AS listings\n    INNER JOIN ProfileRoomLinks AS contacts\n        ON listings.ProfileListingId = contacts.ProfileListingId\n    WHERE contacts.RoomKey IN\n    (\n        @OldRoomKey,\n        @NewRoomKey\n    )\n),\nSummary AS\n(\n    SELECT\n        COUNT(DISTINCT CASE\n            WHEN RoomKey = @OldRoomKey\n            THEN ProfileListingId\n        END) AS SourceMatchCount,\n\n        MAX(CASE\n            WHEN RoomKey = @OldRoomKey\n            THEN ProfileListingId\n        END) AS SourceProfileListingId,\n\n        MAX(CASE\n            WHEN RoomKey = @OldRoomKey\n            THEN ProfileListingKey\n        END) AS SourceProfileListingKey,\n\n        COUNT(DISTINCT CASE\n            WHEN RoomKey = @NewRoomKey\n            THEN ProfileListingId\n        END) AS TargetMatchCount,\n\n        MAX(CASE\n            WHEN RoomKey = @NewRoomKey\n            THEN ProfileListingId\n        END) AS TargetProfileListingId,\n\n        MAX(CASE\n            WHEN RoomKey = @NewRoomKey\n            THEN ProfileListingKey\n        END) AS TargetProfileListingKey\n    FROM Matches\n)\nSELECT\n    @RequestId AS RequestId,\n    @OldRoomKey AS OldRoomKey,\n    @NewRoomKey AS NewRoomKey,\n    CAST(1 AS BIT) AS InputValid,\n\n    SourceMatchCount,\n    SourceProfileListingId,\n    SourceProfileListingKey,\n\n    TargetMatchCount,\n    TargetProfileListingId,\n    TargetProfileListingKey,\n\n    CASE\n        WHEN SourceMatchCount = 0\n            THEN N'Source room was not found'\n\n        WHEN SourceMatchCount > 1\n            THEN N'Source room returned multiple entity listings'\n\n        WHEN TargetMatchCount = 0\n            THEN N'Destination room was not found'\n\n        WHEN TargetMatchCount > 1\n            THEN N'Destination room returned multiple entity listings'\n\n        WHEN SourceProfileListingKey IS NULL\n            THEN N'Source ProfileListingKey is missing'\n\n        WHEN TargetProfileListingKey IS NULL\n            THEN N'Destination ProfileListingKey is missing'\n\n        WHEN SourceMatchCount = 1\n             AND TargetMatchCount = 1\n            THEN N'Entity listings resolved'\n\n        ELSE N'Entity listing validation failed'\n    END AS LookupComment\nFROM Summary;"
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        8000,
+        3968
+      ],
+      "id": "ff14378c-ed8d-4905-8e20-ad1cce1f967d",
+      "name": "Resolve Entity Listings",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "621d1e0c-5c9e-42c5-875f-cc8c8412e02c",
+              "leftValue": "={{ $json.InputValid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "13f4fed0-0134-4447-ad3d-df1dcc2059d9",
+              "leftValue": "={{ $json.SourceMatchCount }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "2a821a88-e222-4079-bbbe-5a384e3d138d",
+              "leftValue": "={{ $json.TargetMatchCount }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "0f0c2126-1e33-47e4-92ea-44d664e039e8",
+              "leftValue": "={{ $json.SourceProfileListingId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "2dabdb64-7548-4589-8740-d6578b74e275",
+              "leftValue": "={{ $json.SourceProfileListingKey }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "66956eaa-5bf1-4f81-a611-7d784d85f3ff",
+              "leftValue": "={{ $json.TargetProfileListingId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "cb16d75f-004c-4e52-95e5-22a0c18f1b04",
+              "leftValue": "={{ $json.TargetProfileListingKey }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        8240,
+        3968
+      ],
+      "id": "50776ed9-55d1-45b4-9e1a-e175e328ba3f",
+      "name": "Entity Listings Valid?"
+    },
+    {
+      "parameters": {
+        "resource": "table",
+        "operation": "getRows",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "REPLACE_WITH_TABLE_ID",
+          "mode": "id"
+        },
+        "returnAll": true,
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        5664,
+        3968
+      ],
+      "id": "bfc52bf8-b79e-4814-a307-ead84eb0eeca",
+      "name": "Get Automation Queue Rows",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Processing"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "CopyReviews"
+            },
+            {
+              "column": "SourceProfileListingId",
+              "fieldValue": "={{ $json.SourceProfileListingId }}"
+            },
+            {
+              "column": "SourceProfileListingKey",
+              "fieldValue": "={{ $json.SourceProfileListingKey }}"
+            },
+            {
+              "column": "TargetProfileListingId",
+              "fieldValue": "={{ $json.TargetProfileListingId }}"
+            },
+            {
+              "column": "TargetProfileListingKey",
+              "fieldValue": "={{ $json.TargetProfileListingKey }}"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "Entity listings resolved; ready to copy reviews"
+            },
+            {
+              "column": "ErrorMessage"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        8480,
+        3968
+      ],
+      "id": "7a00b093-6e5d-4b40-a8fc-06bcc590f891",
+      "name": "Save Resolved Entity Listings"
+    },
+    {
+      "parameters": {
+        "jsCode": "const queueRows = $input\n  .all()\n  .filter(item =>\n    String(item.json.RequestId ?? '').trim() !== ''\n  ).length;\n\nreturn [\n  {\n    json: {\n      QueueDataRows: queueRows\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5904,
+        3968
+      ],
+      "id": "f7a04db5-3cbf-488e-8beb-0c28de48b5f1",
+      "name": "Count Automation Queue Rows"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId ?? $('Mark Sales Request as Queued').all()[$itemIndex].json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Blocked"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "ResolveProfileListings"
+            },
+            {
+              "column": "RetryRequested",
+              "fieldValue": "No"
+            },
+            {
+              "column": "BlockReason",
+              "fieldValue": "={{ $json.BlockReason ?? $json.LookupComment ?? $json.error?.message ?? 'Entity listing lookup failed' }}"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "={{ $json.BlockReason ?? $json.LookupComment ?? $json.error?.message ?? 'Entity listing lookup failed' }}"
+            },
+            {
+              "column": "ErrorMessage"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        8240,
+        4368
+      ],
+      "id": "6d183891-4a27-48d1-a360-6dc3dccd2756",
+      "name": "Save Entity Lookup Block"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId ?? $('Save Resolved Entity Listings').all()[$itemIndex].json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Processing"
+            },
+            {
+              "column": "ReviewsStatus",
+              "fieldValue": "Succeeded"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "CheckRatings"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "Reviews copied successfully; checking ratings"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        9216,
+        3968
+      ],
+      "id": "5450a111-541d-4a34-a9d6-895601e06dba",
+      "name": "Save Review Success"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DECLARE @RequestId NVARCHAR(100) =\n    N'{{ String($json.RequestId ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\nDECLARE @SourceProfileListingId BIGINT =\n    TRY_CONVERT(\n        BIGINT,\n        N'{{ String($json.SourceProfileListingId ?? \"\").trim().replaceAll(\"'\", \"''\") }}'\n    );\n\nDECLARE @TargetProfileListingId BIGINT =\n    TRY_CONVERT(\n        BIGINT,\n        N'{{ String($json.TargetProfileListingId ?? \"\").trim().replaceAll(\"'\", \"''\") }}'\n    );\n\nDECLARE @SourceProfileListingKey NVARCHAR(255) =\n    N'{{ String($json.SourceProfileListingKey ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\nDECLARE @TargetProfileListingKey NVARCHAR(255) =\n    N'{{ String($json.TargetProfileListingKey ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\n\nIF\n    @SourceProfileListingId IS NULL\n    OR @TargetProfileListingId IS NULL\n    OR @SourceProfileListingId = @TargetProfileListingId\nBEGIN\n    SELECT\n        @RequestId AS RequestId,\n        @SourceProfileListingId AS SourceProfileListingId,\n        @SourceProfileListingKey AS SourceProfileListingKey,\n        @TargetProfileListingId AS TargetProfileListingId,\n        @TargetProfileListingKey AS TargetProfileListingKey,\n\n        CAST(0 AS BIT) AS RatingInputValid,\n        0 AS SourceRatingRecordCount,\n        0 AS SourceRatingCount,\n        0 AS DestinationRatingCountBefore,\n        0 AS DestinationRatingCount,\n        CAST(0 AS BIT) AS RatingsSafeToInsert,\n\n        N'Invalid or identical ProfileListing IDs'\n            AS RatingsCheckComment;\n\n    RETURN;\nEND;\n\n\n;WITH SourceRating AS\n(\n    SELECT\n        COUNT(*) AS SourceRatingRecordCount,\n        COALESCE(MAX(RatingCount), 0)\n            AS SourceRatingCount\n    FROM ProfileRatings\n    WHERE ProfileListingId = @SourceProfileListingId\n),\nDestinationRating AS\n(\n    SELECT\n        COUNT(*) AS DestinationRatingCountBefore,\n        COALESCE(MAX(RatingCount), 0)\n            AS DestinationRatingCount\n    FROM ProfileRatings\n    WHERE ProfileListingId = @TargetProfileListingId\n)\nSELECT\n    @RequestId AS RequestId,\n    @SourceProfileListingId AS SourceProfileListingId,\n    @SourceProfileListingKey AS SourceProfileListingKey,\n    @TargetProfileListingId AS TargetProfileListingId,\n    @TargetProfileListingKey AS TargetProfileListingKey,\n\n    CAST(1 AS BIT) AS RatingInputValid,\n\n    source.SourceRatingRecordCount,\n    source.SourceRatingCount,\n\n    destination.DestinationRatingCountBefore,\n    destination.DestinationRatingCount,\n\n    CAST(\n        CASE\n            WHEN source.SourceRatingRecordCount = 1\n             AND destination.DestinationRatingCountBefore = 0\n             AND destination.DestinationRatingCount\n                    <= source.SourceRatingCount\n            THEN 1\n            ELSE 0\n        END\n        AS BIT\n    ) AS RatingsSafeToInsert,\n\n    CASE\n        WHEN source.SourceRatingRecordCount = 0\n            THEN N'Source room has no rating record'\n\n        WHEN source.SourceRatingRecordCount > 1\n            THEN N'Source room has duplicate rating records'\n\n        WHEN destination.DestinationRatingCount\n             > source.SourceRatingCount\n            THEN N'Blocked: destination RatingCount is greater than source'\n\n        WHEN destination.DestinationRatingCountBefore > 0\n            THEN N'Blocked: destination already has a rating record'\n\n        ELSE N'Rating safety checks passed'\n    END AS RatingsCheckComment\n\nFROM SourceRating AS source\nCROSS JOIN DestinationRating AS destination;"
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        9456,
+        3968
+      ],
+      "id": "e06ffc12-6889-4367-8ad4-0aa9676dfcb3",
+      "name": "Check Rating Safety",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9872a75d-fb88-48c2-9c08-aa5e63be5b21",
+              "leftValue": "={{ $json.RatingInputValid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "b5860073-a633-4a9d-84ee-b339ae0ef2d0",
+              "leftValue": "={{ Number($json.SourceRatingRecordCount) }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "4c8f6148-992c-4ca6-9160-9713cd2312da",
+              "leftValue": "={{ Number($json.DestinationRatingCountBefore) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "15502f02-c438-4fa6-98c3-96520bf0a6cb",
+              "leftValue": "={{ $json.RatingsSafeToInsert }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        9696,
+        3968
+      ],
+      "id": "61e088ef-96b5-48fd-aa8c-edac23c39c61",
+      "name": "Ratings Safe to Insert?"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "RatingsStatus",
+              "fieldValue": "ReadyToInsert"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "InsertRatings"
+            },
+            {
+              "column": "SourceRatingCount",
+              "fieldValue": "={{ $json.SourceRatingCount }}"
+            },
+            {
+              "column": "DestinationRatingCountBefore",
+              "fieldValue": "={{ $json.DestinationRatingCountBefore }}"
+            },
+            {
+              "column": "DestinationRatingCount",
+              "fieldValue": "={{ $json.DestinationRatingCount }}"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "Rating safety checks passed; ready to insert"
+            },
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Processing"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        9936,
+        3968
+      ],
+      "id": "b76174c2-5610-4a31-8551-7564de5581f6",
+      "name": "Save Rating Check Passed"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET NOCOUNT ON;\nSET XACT_ABORT ON;\n\nDECLARE @RequestId NVARCHAR(100) =\n    N'{{ String($json.RequestId ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\nDECLARE @SourceProfileListingId BIGINT =\n    TRY_CONVERT(BIGINT, N'{{ String($json.SourceProfileListingId ?? \"\").trim().replaceAll(\"'\", \"''\") }}');\n\nDECLARE @TargetProfileListingId BIGINT =\n    TRY_CONVERT(BIGINT, N'{{ String($json.TargetProfileListingId ?? \"\").trim().replaceAll(\"'\", \"''\") }}');\n\nDECLARE @SourceProfileListingKey NVARCHAR(255) =\n    N'{{ String($json.SourceProfileListingKey ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\nDECLARE @TargetProfileListingKey NVARCHAR(255) =\n    N'{{ String($json.TargetProfileListingKey ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\nDECLARE @SourceRatingRecordCount INT = 0;\nDECLARE @DestinationRatingCountBefore INT = 0;\nDECLARE @DestinationRatingCountAfter INT = 0;\nDECLARE @SourceRatingCount BIGINT = 0;\nDECLARE @DestinationRatingCount BIGINT = 0;\nDECLARE @InsertedRows INT = 0;\nDECLARE @InsertSucceeded BIT = 0;\nDECLARE @InsertComment NVARCHAR(1000);\n\nIF\n    @SourceProfileListingId IS NULL\n    OR @TargetProfileListingId IS NULL\n    OR @SourceProfileListingId = @TargetProfileListingId\nBEGIN\n    SELECT\n        @RequestId AS RequestId,\n        @SourceProfileListingId AS SourceProfileListingId,\n        @SourceProfileListingKey AS SourceProfileListingKey,\n        @TargetProfileListingId AS TargetProfileListingId,\n        @TargetProfileListingKey AS TargetProfileListingKey,\n        0 AS SourceRatingRecordCount,\n        0 AS SourceRatingCount,\n        0 AS DestinationRatingCountBefore,\n        0 AS DestinationRatingCount,\n        0 AS DestinationRatingCountAfter,\n        0 AS InsertedRows,\n        CAST(0 AS BIT) AS InsertSucceeded,\n        N'Blocked: invalid or identical ProfileListing IDs' AS InsertComment;\n    RETURN;\nEND;\n\nBEGIN TRY\n    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;\n    BEGIN TRANSACTION;\n\n    SELECT\n        @SourceRatingRecordCount = COUNT(*),\n        @SourceRatingCount =\n            COALESCE(MAX(CONVERT(BIGINT, RatingCount)), 0)\n    FROM ProfileRatings WITH (UPDLOCK, HOLDLOCK)\n    WHERE ProfileListingId = @SourceProfileListingId;\n\n    SELECT\n        @DestinationRatingCountBefore = COUNT(*),\n        @DestinationRatingCount =\n            COALESCE(MAX(CONVERT(BIGINT, RatingCount)), 0)\n    FROM ProfileRatings WITH (UPDLOCK, HOLDLOCK)\n    WHERE ProfileListingId = @TargetProfileListingId;\n\n    IF @SourceRatingRecordCount = 0\n    BEGIN\n        SET @InsertComment = N'Blocked: source room has no rating record';\n        ROLLBACK TRANSACTION;\n    END\n    ELSE IF @SourceRatingRecordCount > 1\n    BEGIN\n        SET @InsertComment = N'Blocked: source room has duplicate rating records';\n        ROLLBACK TRANSACTION;\n    END\n    ELSE IF @DestinationRatingCount > @SourceRatingCount\n    BEGIN\n        SET @InsertComment =\n            N'Blocked: destination RatingCount is greater than source';\n        ROLLBACK TRANSACTION;\n    END\n    ELSE IF @DestinationRatingCountBefore > 0\n    BEGIN\n        SET @InsertComment =\n            N'Blocked: destination already has a rating record';\n        ROLLBACK TRANSACTION;\n    END\n    ELSE\n    BEGIN\n        INSERT INTO ProfileRatings\n        (\n            ProfileListingId,\n            OverallRating,\n            MedicalBackgroundRating,\n            FriendlinessRating,\n            WaitingTimeRating,\n            UpdatedOn,\n            NumberOfSurveys,\n            WaitingTimeRatingCount,\n            exampleRatingCount,\n            RatingCount,\n            DoctorRating,\n            DoctorRatingCount,\n            AdminRating,\n            AdminRatingCount,\n            FacilityRating,\n            FacilityRatingCount,\n            WaitingTimeTotalMinutesRating,\n            WaitingTimeTotalMinutesRatingCount,\n            CreatedOn\n        )\n        SELECT\n            @TargetProfileListingId,\n            sourceRating.OverallRating,\n            sourceRating.MedicalBackgroundRating,\n            sourceRating.FriendlinessRating,\n            sourceRating.WaitingTimeRating,\n            sourceRating.UpdatedOn,\n            sourceRating.NumberOfSurveys,\n            sourceRating.WaitingTimeRatingCount,\n            sourceRating.exampleRatingCount,\n            sourceRating.RatingCount,\n            sourceRating.DoctorRating,\n            sourceRating.DoctorRatingCount,\n            sourceRating.AdminRating,\n            sourceRating.AdminRatingCount,\n            sourceRating.FacilityRating,\n            sourceRating.FacilityRatingCount,\n            sourceRating.WaitingTimeTotalMinutesRating,\n            sourceRating.WaitingTimeTotalMinutesRatingCount,\n            sourceRating.CreatedOn\n        FROM ProfileRatings AS sourceRating\n        WHERE sourceRating.ProfileListingId = @SourceProfileListingId;\n\n        SET @InsertedRows = @@ROWCOUNT;\n\n        SELECT\n            @DestinationRatingCountAfter = COUNT(*)\n        FROM ProfileRatings WITH (UPDLOCK, HOLDLOCK)\n        WHERE ProfileListingId = @TargetProfileListingId;\n\n        IF @InsertedRows = 1 AND @DestinationRatingCountAfter = 1\n        BEGIN\n            COMMIT TRANSACTION;\n            SET @InsertSucceeded = 1;\n            SET @InsertComment = N'Rating inserted successfully';\n        END\n        ELSE\n        BEGIN\n            ROLLBACK TRANSACTION;\n            SET @InsertedRows = 0;\n            SET @InsertSucceeded = 0;\n            SET @InsertComment =\n                N'Blocked: insert did not produce exactly one destination rating record';\n        END;\n    END;\nEND TRY\nBEGIN CATCH\n    IF @@TRANCOUNT > 0\n        ROLLBACK TRANSACTION;\n\n    SET @InsertedRows = 0;\n    SET @InsertSucceeded = 0;\n    SET @InsertComment =\n        CONCAT(N'Rating insert failed: ', ERROR_MESSAGE());\nEND CATCH;\n\nSELECT\n    @RequestId AS RequestId,\n    @SourceProfileListingId AS SourceProfileListingId,\n    @SourceProfileListingKey AS SourceProfileListingKey,\n    @TargetProfileListingId AS TargetProfileListingId,\n    @TargetProfileListingKey AS TargetProfileListingKey,\n    @SourceRatingRecordCount AS SourceRatingRecordCount,\n    @SourceRatingCount AS SourceRatingCount,\n    @DestinationRatingCountBefore AS DestinationRatingCountBefore,\n    @DestinationRatingCount AS DestinationRatingCount,\n    @DestinationRatingCountAfter AS DestinationRatingCountAfter,\n    @InsertedRows AS InsertedRows,\n    @InsertSucceeded AS InsertSucceeded,\n    @InsertComment AS InsertComment;"
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        10176,
+        3968
+      ],
+      "id": "4e09acc1-ce9b-4cd3-ac87-63e3c3c3e14b",
+      "name": "Insert Ratings Safely",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b485acf4-42b9-4925-af37-1698371e60e9",
+              "leftValue": "={{ $json.InsertSucceeded }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "ef84c6fb-3056-4323-9f89-b331c9fc90f2",
+              "leftValue": "={{ Number($json.InsertedRows) }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "e7b9f26f-9d8c-42de-bf9c-b115cd177195",
+              "leftValue": "={{ Number($json.DestinationRatingCountAfter) }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        10416,
+        3968
+      ],
+      "id": "21a8e39c-8be1-4c9d-8236-2d9c3de950d8",
+      "name": "Rating Insert Succeeded?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET NOCOUNT ON;\n\nDECLARE @RequestId NVARCHAR(100) =\n    N'{{ String($json.RequestId ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\nDECLARE @SourceProfileListingId BIGINT =\n    TRY_CONVERT(BIGINT, N'{{ String($json.SourceProfileListingId ?? \"\").trim().replaceAll(\"'\", \"''\") }}');\n\nDECLARE @TargetProfileListingId BIGINT =\n    TRY_CONVERT(BIGINT, N'{{ String($json.TargetProfileListingId ?? \"\").trim().replaceAll(\"'\", \"''\") }}');\n\nDECLARE @SourceProfileListingKey NVARCHAR(255) =\n    N'{{ String($json.SourceProfileListingKey ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\nDECLARE @TargetProfileListingKey NVARCHAR(255) =\n    N'{{ String($json.TargetProfileListingKey ?? \"\").trim().replaceAll(\"'\", \"''\") }}';\n\nDECLARE @DestinationRatingCountAfter INT;\nDECLARE @DestinationRatingCount BIGINT;\n\nSELECT\n    @DestinationRatingCountAfter = COUNT(*),\n    @DestinationRatingCount =\n        COALESCE(MAX(CONVERT(BIGINT, RatingCount)), 0)\nFROM ProfileRatings\nWHERE ProfileListingId = @TargetProfileListingId;\n\nSELECT\n    @RequestId AS RequestId,\n    @SourceProfileListingId AS SourceProfileListingId,\n    @SourceProfileListingKey AS SourceProfileListingKey,\n    @TargetProfileListingId AS TargetProfileListingId,\n    @TargetProfileListingKey AS TargetProfileListingKey,\n    @DestinationRatingCountAfter AS DestinationRatingCountAfter,\n    @DestinationRatingCount AS DestinationRatingCount,\n    CAST(\n        CASE\n            WHEN @TargetProfileListingId IS NOT NULL\n             AND @DestinationRatingCountAfter = 1\n            THEN 1\n            ELSE 0\n        END\n        AS BIT\n    ) AS RatingVerificationPassed,\n    CASE\n        WHEN @TargetProfileListingId IS NULL\n            THEN N'Verification failed: destination ProfileListingId is missing'\n        WHEN @DestinationRatingCountAfter = 0\n            THEN N'Verification failed: destination rating record was not found'\n        WHEN @DestinationRatingCountAfter > 1\n            THEN N'Critical: duplicate destination rating records detected'\n        ELSE N'Destination rating verified successfully'\n    END AS RatingVerificationComment;"
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        10896,
+        3968
+      ],
+      "id": "2b0048ea-4ed6-4add-ab31-ebb23bf5558a",
+      "name": "Verify Destination Rating",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7725cf91-6bec-4cc0-aeb6-2d1fb3b19fa7",
+              "leftValue": "={{ $json.RatingVerificationPassed }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "28279312-7bc0-49f0-9354-b75697c467db",
+              "leftValue": "={{ Number($json.DestinationRatingCountAfter) }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        11136,
+        3968
+      ],
+      "id": "e7a308ff-0767-49ed-8814-12a16c7a836b",
+      "name": "Rating Verification Passed?"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Processing"
+            },
+            {
+              "column": "RatingsStatus",
+              "fieldValue": "Succeeded"
+            },
+            {
+              "column": "DestinationRatingCountAfter",
+              "fieldValue": "={{ $json.DestinationRatingCountAfter }}"
+            },
+            {
+              "column": "SqsStatus",
+              "fieldValue": "Pending"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "SendSqs"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "Ratings copied and verified; ready to update Elasticsearch"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        11376,
+        3968
+      ],
+      "id": "bc3f757c-adb6-4b4d-811c-64eec03d3785",
+      "name": "Save Ratings Success"
+    },
+    {
+      "parameters": {
+        "queue": "https://sqs.REGION.amazonaws.com/ACCOUNT_ID/QUEUE_NAME",
+        "sendInputData": false,
+        "message": "={{ JSON.stringify({   ProfileListingId: Number($json.TargetProfileListingId),   ProfileListingKey: String($json.TargetProfileListingKey) }) }}",
+        "options": {
+          "messageAttributes": {
+            "string": [
+              {
+                "name": "messageType",
+                "value": "profile_search_refresh"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsSqs",
+      "typeVersion": 1,
+      "position": [
+        11616,
+        3968
+      ],
+      "id": "5453f7f0-16bd-44ba-a53a-a9c6242ebf2b",
+      "name": "AWS SQS",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "00fcd035-ef68-482d-b009-a2b86f10d71f",
+              "leftValue": "={{ String($json.MessageId ?? '').trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "81e821f4-d148-445e-ad7c-f654274de16d",
+              "leftValue": "={{ String($json.MD5OfMessageBody ?? '').trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        11856,
+        3968
+      ],
+      "id": "815b2378-83e4-4e00-a5e7-07916c6daa98",
+      "name": "SQS Message Sent?"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId ?? $('Save Ratings Success').all()[$itemIndex].json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Processing"
+            },
+            {
+              "column": "SqsStatus",
+              "fieldValue": "Succeeded"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "UpdateSales"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "SQS message accepted; updating Sales request"
+            },
+            {
+              "column": "ErrorMessage"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        12096,
+        3968
+      ],
+      "id": "258eaad7-6517-4797-8892-a707053c4b43",
+      "name": "Save SQS Success"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ 'A5:L' + ($('Get Approved Sales Requests').all().reduce((last, item, index) => item.json.RequestId ? index : last, -1) + 6) }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "Dev Action",
+              "fieldValue": "Completed successfully"
+            },
+            {
+              "column": "Automation Comment",
+              "fieldValue": "Reviews and ratings copied successfully"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        12336,
+        3968
+      ],
+      "id": "33b277bd-93da-4d9e-b8a1-c36950b0ec78",
+      "name": "Mark Sales Request Completed"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Succeeded"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "Completed"
+            },
+            {
+              "column": "RetryRequested",
+              "fieldValue": "No"
+            },
+            {
+              "column": "CompletedAt",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "Completed successfully: reviews, ratings, verification and SQS update succeeded"
+            },
+            {
+              "column": "BlockReason"
+            },
+            {
+              "column": "ErrorMessage"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        12576,
+        3968
+      ],
+      "id": "7f7ee4e9-886c-43d3-88be-f2979d6b37f7",
+      "name": "Finalize Automation Record"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId ?? $('Save Review Success').all()[$itemIndex].json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Blocked"
+            },
+            {
+              "column": "RatingsStatus",
+              "fieldValue": "Blocked"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "CheckRatings"
+            },
+            {
+              "column": "RetryRequested",
+              "fieldValue": "No"
+            },
+            {
+              "column": "SourceRatingCount",
+              "fieldValue": "={{ $json.SourceRatingCount }}"
+            },
+            {
+              "column": "DestinationRatingCountBefore",
+              "fieldValue": "={{ $json.DestinationRatingCountBefore }}"
+            },
+            {
+              "column": "DestinationRatingCount",
+              "fieldValue": "={{ $json.DestinationRatingCount }}"
+            },
+            {
+              "column": "BlockReason",
+              "fieldValue": "={{ $json.RatingsCheckComment ?? $json.error?.message ?? 'Rating safety check failed' }}"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "={{ $json.RatingsCheckComment ?? $json.error?.message ?? 'Rating safety check failed' }}"
+            },
+            {
+              "column": "ErrorMessage"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        9696,
+        4368
+      ],
+      "id": "fbab823a-b645-405a-a75a-f9d965eac21a",
+      "name": "Save Ratings Safety Block"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ 'A5:L' + ($('Get Approved Sales Requests').all().reduce((last, item, index) => item.json.RequestId ? index : last, -1) + 6) }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "Dev Action",
+              "fieldValue": "Blocked - Developer review required"
+            },
+            {
+              "column": "Automation Comment",
+              "fieldValue": "={{ (() => {\n  const reason = String($json.BlockReason ?? $json.Comment ?? 'Processing was blocked');\n  const ratingValues = [\n    $json.SourceRatingCount,\n    $json.DestinationRatingCountAfter,\n    $json.DestinationRatingCountBefore,\n    $json.DestinationRatingCount\n  ];\n  const hasRatingData = ratingValues.some(value =>\n    value !== undefined &&\n    value !== null &&\n    String(value).trim() !== ''\n  );\n  return hasRatingData\n    ? reason\n      + ' | Source RatingCount: ' + String($json.SourceRatingCount ?? '')\n      + ' | Destination rating rows: ' + String($json.DestinationRatingCountAfter ?? $json.DestinationRatingCountBefore ?? '')\n      + ' | Destination RatingCount: ' + String($json.DestinationRatingCount ?? '')\n    : reason;\n})() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        12336,
+        4608
+      ],
+      "id": "9c101284-4ddc-4d37-ab14-7d7c09cbcf1b",
+      "name": "Mark Sales Request Blocked",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId ?? $('Save Rating Check Passed').all()[$itemIndex].json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Blocked"
+            },
+            {
+              "column": "RatingsStatus",
+              "fieldValue": "Blocked"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "CheckRatings"
+            },
+            {
+              "column": "RetryRequested",
+              "fieldValue": "No"
+            },
+            {
+              "column": "SourceRatingCount",
+              "fieldValue": "={{ $json.SourceRatingCount }}"
+            },
+            {
+              "column": "DestinationRatingCountBefore",
+              "fieldValue": "={{ $json.DestinationRatingCountBefore }}"
+            },
+            {
+              "column": "DestinationRatingCount",
+              "fieldValue": "={{ $json.DestinationRatingCount }}"
+            },
+            {
+              "column": "DestinationRatingCountAfter",
+              "fieldValue": "={{ $json.DestinationRatingCountAfter }}"
+            },
+            {
+              "column": "BlockReason",
+              "fieldValue": "={{ $json.InsertComment ?? $json.error?.message ?? 'Rating insert failed' }}"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "={{ $json.InsertComment ?? $json.error?.message ?? 'Rating insert failed' }}"
+            },
+            {
+              "column": "ErrorMessage",
+              "fieldValue": "={{ $json.InsertComment ?? $json.error?.message ?? 'Rating insert failed' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        10416,
+        4368
+      ],
+      "id": "d0d6daf9-197b-47ec-8bab-7c946caa5693",
+      "name": "Save Rating Insert Block"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId ?? $('Save Rating Insert Success').all()[$itemIndex].json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Blocked"
+            },
+            {
+              "column": "RatingsStatus",
+              "fieldValue": "Blocked"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "VerifyRatings"
+            },
+            {
+              "column": "RetryRequested",
+              "fieldValue": "No"
+            },
+            {
+              "column": "DestinationRatingCountAfter",
+              "fieldValue": "={{ $json.DestinationRatingCountAfter }}"
+            },
+            {
+              "column": "DestinationRatingCount",
+              "fieldValue": "={{ $json.DestinationRatingCount }}"
+            },
+            {
+              "column": "BlockReason",
+              "fieldValue": "={{ $json.RatingVerificationComment ?? $json.error?.message ?? 'Rating verification failed' }}"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "={{ $json.RatingVerificationComment ?? $json.error?.message ?? 'Rating verification failed' }}"
+            },
+            {
+              "column": "ErrorMessage",
+              "fieldValue": "={{ $json.RatingVerificationComment ?? $json.error?.message ?? 'Rating verification failed' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        11136,
+        4368
+      ],
+      "id": "dbf32177-1752-43cf-b2ba-2537d0579a8c",
+      "name": "Save Rating Verification Block"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId ?? $('Save Ratings Success').all()[$itemIndex].json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Blocked"
+            },
+            {
+              "column": "SqsStatus",
+              "fieldValue": "Failed"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "SendSqs"
+            },
+            {
+              "column": "RetryRequested",
+              "fieldValue": "No"
+            },
+            {
+              "column": "BlockReason",
+              "fieldValue": "={{ 'SQS send failed: ' + String($json.error?.message ?? $json.message ?? 'AWS did not return a MessageId') }}"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "={{ 'SQS send failed: ' + String($json.error?.message ?? $json.message ?? 'AWS did not return a MessageId') }}"
+            },
+            {
+              "column": "ErrorMessage",
+              "fieldValue": "={{ 'SQS send failed: ' + String($json.error?.message ?? $json.message ?? 'AWS did not return a MessageId') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        11856,
+        4368
+      ],
+      "id": "b6134a63-e360-454d-b8a9-fb03376b5973",
+      "name": "Save SQS Block"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a2ab12dc-7020-4709-af3a-922cf2f45374",
+              "leftValue": "={{ !$json.error && Number($json.statusCode ?? 0) >= 200 && Number($json.statusCode ?? 0) < 300 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        8960,
+        3968
+      ],
+      "id": "93161c10-b6f0-4fe1-ae3b-9cc546010700",
+      "name": "Review Copy Succeeded?"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $('Save Resolved Entity Listings').all()[$itemIndex].json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Blocked"
+            },
+            {
+              "column": "ReviewsStatus",
+              "fieldValue": "Failed"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "CopyReviews"
+            },
+            {
+              "column": "RetryRequested",
+              "fieldValue": "No"
+            },
+            {
+              "column": "BlockReason",
+              "fieldValue": "={{ 'Review copy API failed: ' + String($json.error?.message ?? $json.message ?? $json.statusCode ?? 'Unknown API error') }}"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "={{ 'Review copy API failed: ' + String($json.error?.message ?? $json.message ?? $json.statusCode ?? 'Unknown API error') }}"
+            },
+            {
+              "column": "ErrorMessage",
+              "fieldValue": "={{ 'Review copy API failed: ' + String($json.error?.message ?? $json.message ?? $json.statusCode ?? 'Unknown API error') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        8960,
+        4368
+      ],
+      "id": "8a3f070e-97d0-4315-a0ac-86e752f99298",
+      "name": "Save Review API Block"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().flatMap((item, index) => {\n  const row = item.json ?? {};\n  const requestId = String(row.RequestId ?? '').trim();\n  const status = String(row.AutomationStatus ?? '').trim().toLowerCase();\n  const retry = String(row.RetryRequested ?? '').trim().toLowerCase();\n  const nextStep = String(row.NextStep ?? '').trim();\n\n  const explicitRetry = retry === 'yes' && status === 'blocked';\n  const strandedPending = status === 'pending';\n  const shouldResume = Boolean(requestId && nextStep && (explicitRetry || strandedPending));\n\n  if (!shouldResume) return [];\n\n  return [{\n    json: {\n      ...row,\n      RecoveryReason: explicitRetry ? 'Explicit retry' : 'Reclaimed pending request',\n    },\n    pairedItem: { item: index },\n  }];\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8784,
+        3280
+      ],
+      "id": "2ad30a01-eafa-482a-8e61-7fd58064f6fd",
+      "name": "Keep Retry Requests"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Processing"
+            },
+            {
+              "column": "RetryRequested",
+              "fieldValue": "No"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "={{ String($json.RecoveryReason ?? 'Retry claimed') + '; resuming from ' + String($json.NextStep ?? '') }}"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "={{ $json.NextStep }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        9040,
+        3328
+      ],
+      "id": "b9ddf91d-c479-4eb1-b8fd-2df5dffbde89",
+      "name": "Claim Retry Request"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ String($json.NextStep ?? '').trim() }}",
+                    "rightValue": "ResolveProfileListings",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "65ffd968-b43d-4519-b32f-b64ed55878e3"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ResolveProfileListings"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "19b211ea-ac83-4db0-b892-343811d4a860",
+                    "leftValue": "={{ String($json.NextStep ?? '').trim() }}",
+                    "rightValue": "CopyReviews",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CopyReviews"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "4223d152-7d09-46f0-a310-9ad5d6551e67",
+                    "leftValue": "={{ String($json.NextStep ?? '').trim() }}",
+                    "rightValue": "CheckRatings",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CheckRatings"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e6cd0bd4-8022-4c48-954d-295b86be15e0",
+                    "leftValue": "={{ String($json.NextStep ?? '').trim() }}",
+                    "rightValue": "InsertRatings",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "InsertRatings"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0615c0a0-0737-41a2-8b93-3110ac39034e",
+                    "leftValue": "={{ String($json.NextStep ?? '').trim() }}",
+                    "rightValue": "VerifyRatings",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "VerifyRatings"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "42289e37-b65e-40a7-84be-053f6ea6cb65",
+                    "leftValue": "={{ String($json.NextStep ?? '').trim() }}",
+                    "rightValue": "SendSqs",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SendSqs"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "26dc327a-c56c-42f6-9dd7-246f202855df",
+                    "leftValue": "={{ String($json.NextStep ?? '').trim() }}",
+                    "rightValue": "UpdateSales",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "UpdateSales"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        9280,
+        3328
+      ],
+      "id": "6cfd7a06-38c2-4179-999f-deacfd0008aa",
+      "name": "Resume From NextStep"
+    },
+    {
+      "parameters": {
+        "resource": "worksheet",
+        "operation": "upsert",
+        "workbook": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKBOOK_ID",
+          "mode": "id"
+        },
+        "worksheet": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKSHEET_ID",
+          "mode": "id"
+        },
+        "useRange": true,
+        "range": "={{ (() => {\n  const existingRows = $('Get Automation Queue Rows')\n    .all()\n    .filter(item =>\n      String(item.json.RequestId ?? '').trim() !== ''\n    ).length;\n\n  const workItems = $('Build Request Work List').all();\n\n  const currentIndex = Number(\n    $('Loop Over Migration Requests').context['currentRunIndex'] ?? 0\n  );\n\n  const newRowsCreated = workItems\n    .slice(0, currentIndex + 1)\n    .filter(item =>\n      String(item.json.WorkMode ?? '').trim() === 'New'\n    ).length;\n\n  return 'A5:W' + (existingRows + newRowsCreated + 5);\n})() }}",
+        "columnToMatchOn": "RequestId",
+        "valueToMatchOn": "={{ $json.RequestId }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "AutomationStatus",
+              "fieldValue": "Processing"
+            },
+            {
+              "column": "RatingsStatus",
+              "fieldValue": "InsertedPendingVerification"
+            },
+            {
+              "column": "NextStep",
+              "fieldValue": "VerifyRatings"
+            },
+            {
+              "column": "DestinationRatingCountAfter",
+              "fieldValue": "={{ $json.DestinationRatingCountAfter }}"
+            },
+            {
+              "column": "Comment",
+              "fieldValue": "Rating inserted; verifying destination record"
+            },
+            {
+              "column": "ErrorMessage"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftExcel",
+      "typeVersion": 2.2,
+      "position": [
+        10656,
+        3968
+      ],
+      "id": "a7a81fad-601f-48bb-95da-dd06649c29b7",
+      "name": "Save Rating Insert Success"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.example.com/v1/reviews-copy",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"sourceProfileListingKeys\": [\n    \"{{ $json.SourceProfileListingKey }}\"\n  ],\n  \"targetProfileListingKeys\": [\n    \"{{ $json.TargetProfileListingKey }}\"\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8720,
+        3968
+      ],
+      "id": "6b257e48-4494-4785-ba33-ed5714c46642",
+      "name": "Copy Reviews - live",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## 1. Intake & Approval\nRead the queue and accept only approved, unprocessed requests.",
+        "height": 400,
+        "width": 1896,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5504,
+        3808
+      ],
+      "id": "fc1a32fc-20da-4fb0-86c1-7b48710c800a",
+      "name": "Section - Intake and Approval"
+    },
+    {
+      "parameters": {
+        "content": "## 2. Queue & Entity Resolution\nClaim the request and resolve source and destination records safely.",
+        "height": 400,
+        "width": 1160,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        7408,
+        3760
+      ],
+      "id": "d9b9db24-5546-4aef-833a-0ca061f1c9b2",
+      "name": "Section - Queue and Entity Resolution"
+    },
+    {
+      "parameters": {
+        "content": "## 3. Review Migration\nCopy reviews through the authenticated service and persist the checkpoint.",
+        "height": 400,
+        "width": 920,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        8608,
+        3760
+      ],
+      "id": "990e9b58-03e1-4275-82ef-e5c945fa9f23",
+      "name": "Section - Review Migration"
+    },
+    {
+      "parameters": {
+        "content": "## 4. Rating Safety & Insert\nBlock unsafe cases, insert transactionally, and save a durable checkpoint.",
+        "height": 400,
+        "width": 1160,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        9568,
+        3760
+      ],
+      "id": "a1d7227e-9a8b-493a-b59c-ee6a7cb32193",
+      "name": "Section - Rating Safety and Insert"
+    },
+    {
+      "parameters": {
+        "content": "## 5. Verification & Search Sync\nVerify exactly one rating record, notify the search pipeline, and finalize.",
+        "height": 400,
+        "width": 2000,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        10768,
+        3760
+      ],
+      "id": "c3d8cf44-e6ba-468a-a432-d26dcdd90629",
+      "name": "Section - Verification and Search Sync"
+    },
+    {
+      "parameters": {
+        "content": "## Retry Lane\nResume from the last durable checkpoint without restarting completed work.",
+        "height": 360,
+        "width": 920,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        8672,
+        3136
+      ],
+      "id": "f208686a-cd90-42be-b5b6-0d291c862b84",
+      "name": "Section - Retry Lane"
+    },
+    {
+      "parameters": {
+        "content": "## Blocked / Manual Review\nUnsafe or failed requests stop here with an actionable status and comment.",
+        "height": 600,
+        "width": 4560
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        8128,
+        4240
+      ],
+      "id": "95d19b65-a8b0-4567-a358-c91e1baf7b6f",
+      "name": "Section - Blocked and Manual Review"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "id": "ab8d9e25-37ab-4d3f-8dd7-51d0dc679342",
+      "name": "Every day 6 PM - Check New Approvals",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        5312,
+        3856
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const salesRows = $input.all().map(item => item.json ?? {});\nconst queueRows = $('Get Automation Queue Rows')\n  .all()\n  .map(item => item.json ?? {});\n\nconst text = value => String(value ?? '').trim();\nconst lower = value => text(value).toLowerCase();\n\nconst queueIds = new Set(\n  queueRows\n    .map(row => text(row.RequestId))\n    .filter(Boolean)\n);\n\n// Resume requests that already exist in the private queue.\nconst retryItems = queueRows\n  .filter(row => {\n    const requestId = text(row.RequestId);\n    const status = lower(row.AutomationStatus);\n    const retryRequested = lower(row.RetryRequested);\n    const nextStep = text(row.NextStep);\n\n    const startedAt = Date.parse(text(row.StartedAt));\n    const staleProcessing =\n      status === 'processing' &&\n      Number.isFinite(startedAt) &&\n      Date.now() - startedAt > 2 * 60 * 60 * 1000;\n\n    const explicitRetry =\n      status === 'blocked' && retryRequested === 'yes';\n\n    const pendingRequest = status === 'pending';\n\n    return Boolean(\n      requestId &&\n      nextStep &&\n      (explicitRetry || pendingRequest || staleProcessing)\n    );\n  })\n  .map(row => ({\n    json: {\n      ...row,\n      WorkMode: 'Retry',\n      RecoveryReason:\n        lower(row.AutomationStatus) === 'pending'\n          ? 'Reclaimed pending request'\n          : lower(row.AutomationStatus) === 'processing'\n            ? 'Reclaimed stale processing request'\n            : 'Explicit retry',\n    },\n  }));\n\n// Add approved requests that are not already in the private queue.\nconst newItems = salesRows\n  .filter(row => {\n    const requestId = text(row.RequestId);\n    const automationComment = lower(row['Automation Comment']);\n\n    const eligibleComment =\n      !automationComment ||\n      automationComment === 'queued for processing';\n\n    return (\n      lower(row.Approval) === 'approved' &&\n      Boolean(requestId) &&\n      Boolean(text(row.OldRoomKey)) &&\n      Boolean(text(row.NewRoomKey)) &&\n      !text(row['Dev Action']) &&\n      eligibleComment &&\n      !queueIds.has(requestId)\n    );\n  })\n  .map(row => ({\n    json: {\n      ...row,\n      WorkMode: 'New',\n      AlreadyQueued: false,\n    },\n  }));\n\nreturn [...retryItems, ...newItems];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6352,
+        3968
+      ],
+      "id": "ef887b1b-4114-40cc-aff6-ba608bbee68b",
+      "name": "Build Request Work List"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        6560,
+        3968
+      ],
+      "id": "d34be904-0c3d-45c8-8937-42b68502a126",
+      "name": "Loop Over Migration Requests"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3b523dad-bdab-487b-abf6-fdbf7f83022c",
+              "leftValue": "={{ String($json.WorkMode ?? '').trim() }}",
+              "rightValue": "Retry",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        7056,
+        3616
+      ],
+      "id": "348fa811-751a-4b48-9692-6a48408623ce",
+      "name": "Retry or New Request?"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Automation Queue Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Approved Sales Requests": {
+      "main": [
+        [
+          {
+            "node": "Build Request Work List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep Approved Requests": {
+      "main": [
+        [
+          {
+            "node": "Check Request in Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Request in Queue": {
+      "main": [
+        [
+          {
+            "node": "Is New Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is New Request?": {
+      "main": [
+        []
+      ]
+    },
+    "Create Queue Record": {
+      "main": [
+        [
+          {
+            "node": "Mark Sales Request as Queued",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Sales Request as Queued": {
+      "main": [
+        [
+          {
+            "node": "Resolve Entity Listings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Entity Listings": {
+      "main": [
+        [
+          {
+            "node": "Entity Listings Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entity Listings Valid?": {
+      "main": [
+        [
+          {
+            "node": "Save Resolved Entity Listings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Entity Lookup Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Automation Queue Rows": {
+      "main": [
+        [
+          {
+            "node": "Count Automation Queue Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Automation Queue Rows": {
+      "main": [
+        [
+          {
+            "node": "Get Approved Sales Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Resolved Entity Listings": {
+      "main": [
+        [
+          {
+            "node": "Copy Reviews - live",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Review Success": {
+      "main": [
+        [
+          {
+            "node": "Check Rating Safety",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Rating Safety": {
+      "main": [
+        [
+          {
+            "node": "Ratings Safe to Insert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ratings Safe to Insert?": {
+      "main": [
+        [
+          {
+            "node": "Save Rating Check Passed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Ratings Safety Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Rating Check Passed": {
+      "main": [
+        [
+          {
+            "node": "Insert Ratings Safely",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Ratings Safely": {
+      "main": [
+        [
+          {
+            "node": "Rating Insert Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rating Insert Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Save Rating Insert Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Rating Insert Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Destination Rating": {
+      "main": [
+        [
+          {
+            "node": "Rating Verification Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rating Verification Passed?": {
+      "main": [
+        [
+          {
+            "node": "Save Ratings Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Rating Verification Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Ratings Success": {
+      "main": [
+        [
+          {
+            "node": "AWS SQS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS SQS": {
+      "main": [
+        [
+          {
+            "node": "SQS Message Sent?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQS Message Sent?": {
+      "main": [
+        [
+          {
+            "node": "Save SQS Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save SQS Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save SQS Success": {
+      "main": [
+        [
+          {
+            "node": "Mark Sales Request Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Sales Request Completed": {
+      "main": [
+        [
+          {
+            "node": "Finalize Automation Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Ratings Safety Block": {
+      "main": [
+        [
+          {
+            "node": "Mark Sales Request Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Rating Insert Block": {
+      "main": [
+        [
+          {
+            "node": "Mark Sales Request Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Rating Verification Block": {
+      "main": [
+        [
+          {
+            "node": "Mark Sales Request Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save SQS Block": {
+      "main": [
+        [
+          {
+            "node": "Mark Sales Request Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review Copy Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Save Review Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Review API Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Review API Block": {
+      "main": [
+        [
+          {
+            "node": "Mark Sales Request Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Entity Lookup Block": {
+      "main": [
+        [
+          {
+            "node": "Mark Sales Request Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep Retry Requests": {
+      "main": [
+        []
+      ]
+    },
+    "Claim Retry Request": {
+      "main": [
+        [
+          {
+            "node": "Resume From NextStep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume From NextStep": {
+      "main": [
+        [
+          {
+            "node": "Mark Sales Request as Queued",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Resolved Entity Listings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Review Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Rating Check Passed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Rating Insert Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Ratings Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Sales Request Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Rating Insert Success": {
+      "main": [
+        [
+          {
+            "node": "Verify Destination Rating",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copy Reviews - live": {
+      "main": [
+        [
+          {
+            "node": "Review Copy Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every day 6 PM - Check New Approvals": {
+      "main": [
+        [
+          {
+            "node": "Get Automation Queue Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Request Work List": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Migration Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Migration Requests": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Retry or New Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry or New Request?": {
+      "main": [
+        [
+          {
+            "node": "Claim Retry Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Queue Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Automation Record": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Migration Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Sales Request Blocked": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Migration Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "UTC",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

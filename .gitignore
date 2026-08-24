@@ -1,0 +1,15 @@
+# Local and secret files
+.env
+.env.*
+credentials*
+secrets*
+*.log
+
+# Production exports must never be committed
+*Production*.json
+*production*.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
