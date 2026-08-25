@@ -1,6 +1,6 @@
 # Business Operations Automation Portfolio
 
-This repository presents three anonymized workflow-automation projects built with n8n. They demonstrate how I translate manual operational processes into controlled, observable, and recoverable integrations across email, spreadsheets, databases, APIs, CRM systems, and cloud messaging.
+This repository presents four anonymized workflow-automation projects built with n8n. They demonstrate how I translate manual operational processes into controlled, observable, and recoverable integrations across email, spreadsheets, databases, APIs, CRM systems, and cloud messaging.
 
 > The workflows are portfolio templates. Production credentials, URLs, resource identifiers, company data, and proprietary system names have been removed or replaced with placeholders.
 
@@ -11,6 +11,7 @@ This repository presents three anonymized workflow-automation projects built wit
 | [Bulk Feedback Publication Automation](projects/bulk-feedback-publication/) | Converts an authorized email and CSV request into a validated bulk database update with a single outcome reply. | Outlook, CSV, Microsoft SQL Server |
 | [Reviews and Ratings Migration Automation](projects/reviews-ratings-migration/) | Safely migrates profile reviews and ratings while preventing duplicates and supporting checkpoint-based recovery. | Excel 365, SQL Server, REST API, AWS SQS |
 | [Profile Ranking Operations Automation](projects/profile-ranking-operations/) | Processes bulk ranking adjustments from email, synchronizes database and API state, optionally updates CRM, and returns one consolidated report. | Outlook, CSV, MySQL, REST API, Salesforce |
+| [Sandbox Account Provisioning Automation](projects/sandbox-account-provisioning/) | Converts a sandbox email and CSV request into validated API-based account provisioning with one row-level outcome report. | Outlook, CSV, REST API |
 
 ## Skills demonstrated
 
@@ -52,5 +53,5 @@ See [SECURITY.md](SECURITY.md) before using or sharing any workflow export.
 
 Suggested GitHub topics:
 
-`n8n` `workflow-automation` `business-process-automation` `api-integration` `salesforce` `sql-server` `mysql` `microsoft-365` `aws-sqs` `csv-processing`
+`n8n` `workflow-automation` `business-process-automation` `api-integration` `account-provisioning` `salesforce` `sql-server` `mysql` `microsoft-365` `aws-sqs` `csv-processing`
 

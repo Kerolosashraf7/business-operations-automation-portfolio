@@ -20,3 +20,9 @@ Developed an event-driven n8n workflow that accepts bulk ranking requests throug
 
 **Skills:** n8n, Microsoft Outlook, CSV processing, MySQL, REST APIs, Salesforce, OAuth 2.0, event-driven automation, aggregation, conditional integrations, error reporting.
 
+## Sandbox Account Provisioning Automation
+
+Built an email-driven n8n workflow that receives sandbox CSV account requests through Microsoft Outlook, validates required user attributes, provisions test accounts through a REST API, and replies with a consolidated row-level success and failure report. Added case-insensitive subject matching, attachment selection, per-email isolation, batch throttling, HTTP response validation, and safe test-only defaults.
+
+**Skills:** n8n, Microsoft Outlook, Microsoft Graph, CSV processing, REST APIs, account provisioning, input validation, batch processing, response validation, error reporting.
+

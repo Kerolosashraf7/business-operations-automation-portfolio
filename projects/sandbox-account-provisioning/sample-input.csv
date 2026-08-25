@@ -1,0 +1,3 @@
+email,tenant_key,full_name,password
+sandbox.user.one@example.invalid,demo-tenant-001,Sandbox User One,ExampleOnly-NotARealPassword-01
+sandbox.user.two@example.invalid,demo-tenant-002,Sandbox User Two,ExampleOnly-NotARealPassword-02

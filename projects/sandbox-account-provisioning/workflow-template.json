@@ -1,0 +1,423 @@
+{
+  "name": "Sandbox Account Provisioning Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Safe portfolio template\n1. This workflow is inactive and has no credentials assigned.\n2. The HTTP node uses a non-routable `.invalid` example domain.\n3. Send an unread test email with a subject containing **Sandbox account request** and attach a CSV.\n4. Required CSV headers (case-insensitive): `email`, `tenant_key`, `full_name`, `password`.\n5. Map the generic request fields only to an approved sandbox system if you choose to test it.",
+        "height": 330,
+        "width": 430,
+        "color": 5
+      },
+      "id": "c84edb0e-b0d5-4a45-a48c-3950e7eb79d1",
+      "name": "Setup instructions",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -980,
+        -500
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "event": "messageReceived",
+        "output": "simple",
+        "filters": {
+          "hasAttachments": true,
+          "readStatus": "unread"
+        },
+        "options": {
+          "downloadAttachments": true,
+          "attachmentsPrefix": "attachment_"
+        }
+      },
+      "id": "45bd778e-e532-43cf-8349-64b09a1dc4b4",
+      "name": "Outlook - New email with attachment",
+      "type": "n8n-nodes-base.microsoftOutlookTrigger",
+      "typeVersion": 1,
+      "position": [
+        -920,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const output = [];\n\nfor (let index = 0; index < $input.all().length; index++) {\n  const item = $input.all()[index];\n  const subject = String(item.json.subject ?? '');\n\n  if (!subject.toLowerCase().includes('sandbox account request')) {\n    continue;\n  }\n\n  const attachments = Object.entries(item.binary ?? {});\n  const csv = attachments.find(([, file]) =>\n    String(file.fileName ?? '').toLowerCase().endsWith('.csv') ||\n    String(file.mimeType ?? '').toLowerCase().includes('csv')\n  );\n\n  if (!csv) {\n    throw new Error(`Email \\\"${subject}\\\" matched the subject rule but has no CSV attachment.`);\n  }\n\n  output.push({\n    json: item.json,\n    binary: { data: csv[1] },\n    pairedItem: { item: index }\n  });\n}\n\nreturn output;"
+      },
+      "id": "e25aa110-38d2-41a7-9762-a4b952d3fe14",
+      "name": "Filter subject and select CSV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "6437c518-175f-478e-9227-f5a5f136fd49",
+      "name": "Loop Over Emails",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -440,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "csv",
+        "binaryPropertyName": "data",
+        "options": {
+          "headerRow": true,
+          "includeEmptyCells": true,
+          "encoding": "utf8"
+        }
+      },
+      "id": "cc85f221-fe9e-473b-b96a-90ebbf1372aa",
+      "name": "Extract CSV rows",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const sourceEmail = $('Loop Over Emails').item.json;\nconst normalized = {};\n\nfor (const [rawKey, rawValue] of Object.entries($json)) {\n  const key = String(rawKey).replace(/^\\uFEFF/, '').trim().toLowerCase();\n  normalized[key] = rawValue;\n}\n\nconst email = String(normalized.email ?? '').trim();\nconst tenantKey = String(normalized.tenant_key ?? normalized.tenantkey ?? '').trim();\nconst fullName = String(normalized.full_name ?? normalized.fullname ?? '').trim();\nconst password = String(normalized.password ?? '').trim();\nconst missing = [];\n\nif (!email) missing.push('email');\nif (!tenantKey) missing.push('tenant_key');\nif (!fullName) missing.push('full_name');\nif (!password) missing.push('password');\n\nreturn {\n  json: {\n    rowNumber: $itemIndex + 2,\n    email,\n    tenantKey,\n    fullName,\n    password,\n    isValid: missing.length === 0,\n    validationError: missing.length ? `Missing required value(s): ${missing.join(', ')}` : '',\n    emailMessageId: sourceEmail.id,\n    emailSubject: sourceEmail.subject ?? 'Sandbox account request'\n  }\n};"
+      },
+      "id": "fb7fb130-8821-4845-9c67-8d733eeec281",
+      "name": "Normalize and validate CSV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "524033c1-cf50-44ba-bf79-a87542b41c19",
+              "leftValue": "={{ $json.isValid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ac1f54cf-d8e4-47a4-9039-dd40dbe85038",
+      "name": "Valid row?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        300,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.example.invalid/v1/sandbox-accounts",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"email\": $json.email, \"password\": $json.password, \"tenantKey\": $json.tenantKey, \"fullName\": $json.fullName, \"accountType\": \"sandbox-user\" } }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 10,
+              "batchInterval": 1000
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "autodetect",
+              "fullResponse": true
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "254dd52b-3665-456e-9318-07ef7bb0e14d",
+      "name": "Create sandbox account",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        560,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const row = $('Normalize and validate CSV').item.json;\nconst statusCode = Number($json.statusCode ?? 0);\nconst responseBody = $json.body ?? $json.data ?? $json.error ?? null;\nconst success = statusCode >= 200 && statusCode < 300;\n\nreturn {\n  json: {\n    ...row,\n    success,\n    statusCode,\n    resultMessage: success\n      ? 'Created successfully'\n      : `API failed${statusCode ? ` with HTTP ${statusCode}` : ''}: ${typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody)}`\n  }\n};"
+      },
+      "id": "976a9c22-b877-4c82-a787-038af1665e94",
+      "name": "Record API result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  json: {\n    ...$json,\n    success: false,\n    statusCode: 0,\n    resultMessage: `CSV validation failed: ${$json.validationError}`\n  }\n};"
+      },
+      "id": "9510f240-20e4-4539-bde8-7ee4820a5213",
+      "name": "Record validation failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "897e7e60-962f-4a97-b21b-ced37570075c",
+      "name": "Collect all results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1040,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all().map(item => item.json);\nconst succeeded = rows.filter(row => row.success);\nconst failed = rows.filter(row => !row.success);\nconst escapeHtml = value => String(value ?? '')\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;')\n  .replace(/\\\"/g, '&quot;')\n  .replace(/'/g, '&#039;');\n\nconst details = rows.map(row =>\n  `<div>Row ${escapeHtml(row.rowNumber)} - ${escapeHtml(row.email || '(no email)')}: ${row.success ? 'SUCCESS' : 'FAILED'} - ${escapeHtml(row.resultMessage)}</div>`\n).join('');\n\nconst message = [\n  '<p>Sandbox account provisioning process completed.</p>',\n  `<p>Total rows: ${rows.length}<br>Succeeded: ${succeeded.length}<br>Failed: ${failed.length}</p>`,\n  `<p><strong>Details:</strong></p>${details}`,\n  '<p>Best regards,<br>Automation Support Team</p>'\n].join('');\n\nreturn [{\n  json: {\n    emailMessageId: rows[0]?.emailMessageId,\n    emailSubject: rows[0]?.emailSubject ?? 'Sandbox account request',\n    total: rows.length,\n    succeeded: succeeded.length,\n    failed: failed.length,\n    message\n  }\n}];"
+      },
+      "id": "ab8dd7e0-322b-42a1-b406-dc3e89ba29d5",
+      "name": "Build reply summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "reply",
+        "messageId": {
+          "__rl": true,
+          "value": "={{ $json.emailMessageId }}",
+          "mode": "id"
+        },
+        "replyToSenderOnly": true,
+        "message": "={{ $json.message }}",
+        "additionalFields": {
+          "bodyContentType": "html"
+        },
+        "options": {
+          "saveAsDraft": false
+        }
+      },
+      "id": "a8a34086-3e16-44f6-92f4-3e060a37d0df",
+      "name": "Outlook - Reply with summary",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        160
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Outlook - New email with attachment": {
+      "main": [
+        [
+          {
+            "node": "Filter subject and select CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter subject and select CSV": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Emails": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Extract CSV rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract CSV rows": {
+      "main": [
+        [
+          {
+            "node": "Normalize and validate CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize and validate CSV": {
+      "main": [
+        [
+          {
+            "node": "Valid row?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid row?": {
+      "main": [
+        [
+          {
+            "node": "Create sandbox account",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Record validation failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create sandbox account": {
+      "main": [
+        [
+          {
+            "node": "Record API result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record API result": {
+      "main": [
+        [
+          {
+            "node": "Collect all results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record validation failure": {
+      "main": [
+        [
+          {
+            "node": "Collect all results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Collect all results": {
+      "main": [
+        [
+          {
+            "node": "Build reply summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build reply summary": {
+      "main": [
+        [
+          {
+            "node": "Outlook - Reply with summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outlook - Reply with summary": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "98b915b7-73d7-438f-9230-2674924120c1",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
